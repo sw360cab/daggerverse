@@ -1,0 +1,6 @@
+{
+  "name": "gnokey",
+  "engineVersion": "v0.15.2",
+  "sdk": "go",
+  "source": "gnokey-tx"
+}

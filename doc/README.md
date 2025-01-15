@@ -9,6 +9,8 @@ A Pipeline as a Code devkit.
 * Dagger Modules (packaged Dagger function, call from Dagger CLI or from other Dagger Functions)
   * called from Github repos
 
+> Dagger is a container orchestrator and runtime. Functions are executed as containers, and can call the Dagger Api to orchestrate more containers
+
 ## Calling Function from Module using CLI
 
     dagger -m github.com/shykes/daggerverse/hello@v0.1.2 call hello
@@ -116,9 +118,14 @@ This will automatically update the `dagger.json` file.
 
 > The Daggerverse is a free service run by Dagger, which indexes all publicly available Dagger modules, and lets you easily search and consume them.
 
+* Regenerate module after finish develop
+
+    dagger develop --sdk=go --mod=<path_to_git_module>
+
 ## Ref
 
 * [GitLab CI | Dagger](https://docs.dagger.io/integrations/734201/gitlab)
 * [CLI Reference | Dagger](https://docs.dagger.io/reference/979596/cli/)
 * [Developing with Go | Dagger](https://docs.dagger.io/manuals/developer/go/)
 * [Dagger Does AI - YouTube](https://www.youtube.com/watch?v=Kgqk5N2hlVU&t=1052s)
+* [Cookbook | Dagger](https://docs.dagger.io/cookbook)
