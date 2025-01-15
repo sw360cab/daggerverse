@@ -17,4 +17,4 @@ jobs:
           version: "v0.15.2"
           verb: call
           workdir: samples/gnokey
-          args: make-txt --home-dir-key=. --password-string=helloworld
+          args: make-tx --home-dir-key=. --password-string=helloworld
