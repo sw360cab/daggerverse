@@ -4,8 +4,9 @@ on:
     branches: [master]
 
 jobs:
+
   test:
-    name: test
+    name: sample-ci
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -15,5 +16,5 @@ jobs:
         with:
           version: "v0.15.2"
           verb: call
-          module: samples/gnokey/gnokey-tx
+          workdir: samples/gnokey/gnokey-tx
           args: make-txt --home-dir-key=samples/gnokey/ --password-string=helloworld
