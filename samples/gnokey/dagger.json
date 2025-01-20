@@ -2,5 +2,11 @@
   "name": "gnokey",
   "engineVersion": "v0.15.2",
   "sdk": "go",
+  "dependencies": [
+    {
+      "name": "gitcloner",
+      "source": "../gnoland"
+    }
+  ],
   "source": "gnokey-tx"
 }

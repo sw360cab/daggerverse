@@ -10,8 +10,9 @@ import (
 type Gnokey struct{}
 
 const (
-	ChainId string = "dev"
-	KeyId   string = "key0"
+	ChainId   string = "dev"
+	KeyId     string = "key0"
+	RealmName string = "r/demo/counter"
 )
 
 // Run Gnokey Container
@@ -52,17 +53,25 @@ func (m *Gnokey) MakeTx(ctx context.Context, homeDirKey *dagger.Directory, passw
 	}
 	pubKey = m.parsePubAddr(pubKey)
 
+	destMountDir := fmt.Sprintf("/gnopackages/%s", RealmName)
+
 	return baseKeyContainer.
 		WithServiceBinding("gno", m.runGnolandValidator(pubKey)).
+		WithDirectory(destMountDir, m.loadGnoPackage(RealmName)).
 		WithExec([]string{"maketx", "addpkg", "-home=/gnohome", "-insecure-password-stdin", "-chainid", ChainId,
 			"-gas-fee", "1000000ugnot", "-gas-wanted", "3000000", "-deposit", "100000000ugnot",
 			"-remote", "gno:26657",
-			"-pkgdir", "/gnohome/gnopackage/counter", "-pkgpath", "gno.land/r/demo/counter", KeyId},
+			"-pkgdir", destMountDir, "-pkgpath", fmt.Sprintf("gno.land/%s", RealmName), KeyId},
 			dagger.ContainerWithExecOpts{
 				UseEntrypoint: true,
 				Stdin:         fmt.Sprintf("%[1]s\n%[1]s\n", passwordString),
 			}).
 		Stdout(ctx)
+}
+
+func (m *Gnokey) loadGnoPackage(packageName string) *dagger.Directory {
+	repoDir := dag.Gitcloner().Clone()
+	return repoDir.Directory(fmt.Sprintf("./examples/gno.land/%s", packageName))
 }
 
 // Run Gnoland chain

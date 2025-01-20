@@ -9,10 +9,9 @@ import (
 type Gnoland struct{}
 
 type Locator string
-
 type GitGno struct {
-	locator Locator
-	ref     string
+	Locator Locator
+	Ref     string
 }
 
 const (
@@ -27,12 +26,12 @@ func (m *Gnoland) clone(gitGno GitGno) *dagger.Directory {
 	r := dag.Git(GnoRepo)
 	var d *dagger.Directory
 
-	ref := gitGno.ref
+	ref := gitGno.Ref
 	if ref == "" {
 		ref = "master"
 	}
 
-	switch gitGno.locator {
+	switch gitGno.Locator {
 	case Tag:
 		d = r.Tag(ref).Tree()
 	case Commit:
@@ -44,11 +43,17 @@ func (m *Gnoland) clone(gitGno GitGno) *dagger.Directory {
 	return d
 }
 
+// Clones MASTER git repository into a dir
+// FIXME: needed in external module because custom type export does not work as expected
+func (m *Gnoland) Clone() *dagger.Directory {
+	return dag.Git(GnoRepo).Branch("master").Tree()
+}
+
 // Debugs using terminal
 func (m *Gnoland) GitCodeBase(gitGno GitGno) *dagger.Container {
 	return dag.Container().
 		From("golang:1.22-alpine").
-		WithDirectory("/src", m.clone(gitGno)).
+		WithDirectory("/src", m.Clone()).
 		WithWorkdir("/src").
 		WithExec([]string{"go", "test", "-v", "-count=1", "./gnovm/pkg/gnofmt"})
 }
@@ -62,8 +67,8 @@ func (m *Gnoland) GitCodeTest(
 	ref string) (string, error) {
 
 	return m.GitCodeBase(GitGno{
-		locator: locator,
-		ref:     ref,
+		Locator: locator,
+		Ref:     ref,
 	}).Stdout(ctx)
 }
 
@@ -76,7 +81,7 @@ func (m *Gnoland) GitCodeTestDebug(
 	ref string) *dagger.Container {
 
 	return m.GitCodeBase(GitGno{
-		locator: locator,
-		ref:     ref,
+		Locator: locator,
+		Ref:     ref,
 	}).Terminal()
 }

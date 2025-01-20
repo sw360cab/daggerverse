@@ -122,6 +122,10 @@ This will automatically update the `dagger.json` file.
 
     dagger develop --sdk=go --mod=<path_to_git_module>
 
+* Add dependecies to local module
+
+    dagger install -n #_name to use for the dependency in the module_# #_local moule name_#
+
 ## Ref
 
 * [GitLab CI | Dagger](https://docs.dagger.io/integrations/734201/gitlab)
