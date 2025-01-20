@@ -53,7 +53,7 @@ func (m *Gnokey) MakeTx(ctx context.Context, homeDirKey *dagger.Directory, passw
 	pubKey = m.parsePubAddr(pubKey)
 
 	return baseKeyContainer.
-		WithServiceBinding("gno", m.runGnolandValidator(pubKey, homeDirKey)).
+		WithServiceBinding("gno", m.runGnolandValidator(pubKey)).
 		WithExec([]string{"maketx", "addpkg", "-home=/gnohome", "-insecure-password-stdin", "-chainid", ChainId,
 			"-gas-fee", "1000000ugnot", "-gas-wanted", "3000000", "-deposit", "100000000ugnot",
 			"-remote", "gno:26657",
@@ -66,27 +66,25 @@ func (m *Gnokey) MakeTx(ctx context.Context, homeDirKey *dagger.Directory, passw
 }
 
 // Run Gnoland chain
-func (m *Gnokey) runGnolandValidator(publicKey string, homeDirKey *dagger.Directory) *dagger.Service {
-	// use entrypont
+func (m *Gnokey) runGnolandValidator(publicKey string) *dagger.Service {
+	// use entrypoint
 	execOpts := dagger.ContainerWithExecOpts{
 		UseEntrypoint: true,
 	}
 
+	// Add current account to genesis
 	ctr := dag.Container().
 		From("ghcr.io/gnolang/gno/gnoland:master").
-		WithMountedDirectory("/tmp/appender", homeDirKey).
-		WithExec([]string{"sh", "/tmp/appender/script.sh", fmt.Sprintf("%s=10000000000ugnot", publicKey)})
-	// TODO: check these
-	// WithExec([]string{"cp", "/gnoroot/gno.land/genesis/genesis_balances.txt", "/tmp/genesis_balances.txt"}).
-	// WithExec([]string{"sh", "-c", "echo", fmt.Sprintf("%s=10000000000ugnot", publicKey), ">", "/tmp/genesis_balances.txt"})
+		WithExec([]string{"sh", "-c", fmt.Sprintf("echo %s=10000000000ugnot >> /gnoroot/gno.land/genesis/genesis_balances.txt", publicKey)})
 
 	return ctr.
-		From("ghcr.io/gnolang/gno/gnoland:master").
 		WithExposedPort(26657).
 		WithExec([]string{"config", "init"}, execOpts).
 		WithExec([]string{"config", "set", "rpc.laddr", "tcp://0.0.0.0:26657"}, execOpts).
-		WithExec([]string{"start", "--lazy", "--chainid", ChainId}, execOpts).
-		AsService()
+		AsService(dagger.ContainerAsServiceOpts{
+			Args:          []string{"start", "--lazy", "--log-level", "info", "--chainid", ChainId},
+			UseEntrypoint: execOpts.UseEntrypoint,
+		})
 }
 
 func (m *Gnokey) parsePubAddr(keyline string) string {
