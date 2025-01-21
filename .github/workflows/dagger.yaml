@@ -18,3 +18,17 @@ jobs:
           verb: call
           workdir: samples/gnokey
           args: make-tx --home-dir-key=. --password-string=helloworld
+
+  supernova:
+    name: supernova-ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Supernova Run
+        uses: dagger/dagger-for-github@v7
+        with:
+          version: "v0.15.2"
+          verb: call
+          workdir: samples/supernova
+          args: run-test --sub-accounts 2 --transactions 100

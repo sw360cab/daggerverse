@@ -56,7 +56,7 @@ func (m *Gnokey) MakeTx(ctx context.Context, homeDirKey *dagger.Directory, passw
 	destMountDir := fmt.Sprintf("/gnopackages/%s", RealmName)
 
 	return baseKeyContainer.
-		WithServiceBinding("gno", m.runGnolandValidator(pubKey)).
+		WithServiceBinding("gno", m.RunGnolandValidator(pubKey)).
 		WithDirectory(destMountDir, m.loadGnoPackage(RealmName)).
 		WithExec([]string{"maketx", "addpkg", "-home=/gnohome", "-insecure-password-stdin", "-chainid", ChainId,
 			"-gas-fee", "1000000ugnot", "-gas-wanted", "3000000", "-deposit", "100000000ugnot",
@@ -75,7 +75,7 @@ func (m *Gnokey) loadGnoPackage(packageName string) *dagger.Directory {
 }
 
 // Run Gnoland chain
-func (m *Gnokey) runGnolandValidator(publicKey string) *dagger.Service {
+func (m *Gnokey) RunGnolandValidator(publicKey string) *dagger.Service {
 	// use entrypoint
 	execOpts := dagger.ContainerWithExecOpts{
 		UseEntrypoint: true,
@@ -83,8 +83,12 @@ func (m *Gnokey) runGnolandValidator(publicKey string) *dagger.Service {
 
 	// Add current account to genesis
 	ctr := dag.Container().
-		From("ghcr.io/gnolang/gno/gnoland:master").
-		WithExec([]string{"sh", "-c", fmt.Sprintf("echo %s=10000000000ugnot >> /gnoroot/gno.land/genesis/genesis_balances.txt", publicKey)})
+		From("ghcr.io/gnolang/gno/gnoland:chain-test5.0")
+
+	if publicKey != "" {
+		ctr.
+			WithExec([]string{"sh", "-c", fmt.Sprintf("echo %s=10000000000ugnot >> /gnoroot/gno.land/genesis/genesis_balances.txt", publicKey)})
+	}
 
 	return ctr.
 		WithExposedPort(26657).
