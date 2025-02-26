@@ -5,10 +5,10 @@ A Playground for Dagger CI in Gno
 * `basic`: basic examples
 * `gnoland`: clone Gnoland git repo adn run go tests
 * `gnokey`: play with Gnokey basic operations
+* `supernova`: full fledged Supernova call example
 
 ## TODO
 
-* Github action basic
 * simulate PL
 * call tx
 
