@@ -2,5 +2,5 @@
   "name": "gnoland",
   "engineVersion": "v0.15.2",
   "sdk": "go",
-  "source": "git-test"
+  "source": "."
 }
