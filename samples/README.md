@@ -27,13 +27,14 @@ Download the Gnoland source code from Git and run project's go tests
 
 ```bash
 cd gnoland
-dagger init --sdk=go --source=./git-test
+dagger init --sdk=go
+cd ..
 ```
 
 * Git source code tests
 
 ```bash
-dagger -m gnoland/git-test call git-code-test
+dagger -m gnoland call git-code-test
 ```
 
 ## Gnokey
@@ -42,7 +43,7 @@ Play with `gnokey` image
 
 ```bash
 cd gnokey
-dagger init --sdk=go --source=./gnokey-tx
+dagger init --sdk=go
 ```
 
 * Generate keys
