@@ -14,7 +14,7 @@ jobs:
       - name: Test
         uses: dagger/dagger-for-github@v7
         with:
-          version: "v0.15.2"
+          version: "v0.16.1"
           verb: call
           workdir: samples/gnokey
           args: make-tx --home-dir-key=. --password-string=helloworld
@@ -28,7 +28,7 @@ jobs:
       - name: Supernova Run
         uses: dagger/dagger-for-github@v7
         with:
-          version: "v0.15.2"
+          version: "v0.16.1"
           verb: call
           workdir: samples/supernova
           args: run-test --sub-accounts 2 --transactions 100
