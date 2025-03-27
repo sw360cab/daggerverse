@@ -43,17 +43,29 @@ func (m *Gnoland) clone(gitGno GitGno) *dagger.Directory {
 	return d
 }
 
-// Clones MASTER git repository into a dir
-// FIXME: needed in external module because custom type export does not work as expected
-func (m *Gnoland) Clone() *dagger.Directory {
-	return dag.Git(GnoRepo).Branch("master").Tree()
+// Clones a git repository either from Branch/Tag/Commit
+func (m *Gnoland) Clone(
+	// +optional
+	locator Locator,
+	// +optional
+	ref string,
+) *dagger.Directory {
+	return m.clone(GitGno{
+		Locator: locator,
+		Ref:     ref,
+	})
 }
 
-// Debugs using terminal
+// Clones MASTER branch of git repository into a dir
+func (m *Gnoland) CloneMaster() *dagger.Directory {
+	return m.clone(GitGno{})
+}
+
+// Runs basic test on packages
 func (m *Gnoland) GitCodeBase(gitGno GitGno) *dagger.Container {
 	return dag.Container().
 		From("golang:1.22-alpine").
-		WithDirectory("/src", m.Clone()).
+		WithDirectory("/src", m.CloneMaster()).
 		WithWorkdir("/src").
 		WithExec([]string{"go", "test", "-v", "-count=1", "./gnovm/pkg/gnofmt"})
 }

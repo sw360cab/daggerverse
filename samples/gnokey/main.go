@@ -70,7 +70,7 @@ func (m *Gnokey) MakeTx(ctx context.Context, homeDirKey *dagger.Directory, passw
 }
 
 func (m *Gnokey) loadGnoPackage(packageName string) *dagger.Directory {
-	repoDir := dag.Gitcloner().Clone()
+	repoDir := dag.Gitcloner().CloneMaster()
 	return repoDir.Directory(fmt.Sprintf("./examples/gno.land/%s", packageName))
 }
 

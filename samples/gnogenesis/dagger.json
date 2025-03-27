@@ -1,5 +1,5 @@
 {
-  "name": "gnokey",
+  "name": "gnogenesis",
   "engineVersion": "v0.16.1",
   "sdk": {
     "source": "go"

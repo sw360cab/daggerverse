@@ -1,4 +1,4 @@
-module dagger/gnoland
+module dagger/gno-dagger
 
 go 1.23.2
 

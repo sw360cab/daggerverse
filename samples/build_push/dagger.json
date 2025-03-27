@@ -1,5 +1,5 @@
 {
-  "name": "gnoland",
+  "name": "build_push",
   "engineVersion": "v0.16.1",
   "sdk": {
     "source": "go"

@@ -1,4 +1,4 @@
-module dagger/gnoland
+module dagger/build-push
 
 go 1.23.2
 
