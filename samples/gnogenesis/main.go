@@ -32,7 +32,6 @@ func (r *Gnogenesis) getMasterImage(target dagger.GitclonerTargetBinary) string 
 	case dagger.GitclonerTargetBinaryGnocontribs,
 		dagger.GitclonerTargetBinaryGnokey,
 		dagger.GitclonerTargetBinaryGnoland:
-		fmt.Println("ok")
 		return fmt.Sprintf("ghcr.io/gnolang/gno/%s:master", target)
 	default:
 		fmt.Println(target)
@@ -113,4 +112,42 @@ func (m *Gnogenesis) RunGnolandWithGenesisUsingCodebase(
 	}
 
 	return m.runGnolandWithGenesis(ctx, srcDir)
+}
+
+// Adds a validator node to the current genesis
+func (m *Gnogenesis) AddValidatorNode(
+	ctx context.Context,
+	nodeName string,
+	genesisFile *dagger.File,
+	secretsFolder *dagger.Directory) *dagger.File {
+	// use entrypoint
+	execOpts := dagger.ContainerWithExecOpts{
+		UseEntrypoint: true,
+	}
+
+	// get node address
+	nodeAddress, _ := m.getBinary(dagger.GitclonerTargetBinaryGnoland, nil).
+		WithDirectory("/gnoroot/gnoland-data/secrets", secretsFolder).
+		WithExec(strings.Split("secrets get validator_key.address -raw", " "), execOpts).Stdout(ctx)
+
+	// get node pub key
+	nodePubKey, _ := m.getBinary(dagger.GitclonerTargetBinaryGnoland, nil).
+		WithDirectory("/gnoroot/gnoland-data/secrets", secretsFolder).
+		WithExec(strings.Split("secrets get validator_key.pub_key -raw", " "), execOpts).Stdout(ctx)
+
+	return m.getBinary(dagger.GitclonerTargetBinaryGnocontribs, nil).
+		WithWorkdir("/gnoroot").
+		WithFile("/gnoroot/genesis.json", genesisFile).
+		WithExec([]string{
+			"gnogenesis",
+			"validator",
+			"add",
+			"-name",
+			nodeName,
+			"-address",
+			strings.ReplaceAll(nodeAddress, "\n", ""),
+			"-pub-key",
+			strings.ReplaceAll(nodePubKey, "\n", ""),
+		}).
+		File("/gnoroot/genesis.json")
 }

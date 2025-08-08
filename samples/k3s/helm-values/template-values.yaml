@@ -1,0 +1,22 @@
+app:
+  name: gno-val-01
+  role: validator
+
+storage:
+  capacity: 1Gi # 120Gi
+  local:
+    path: /opt/gnoland/validator/1/data
+
+svc:
+  name: gno-val-svc-01
+
+ingress:
+  enabled: false
+
+placement:
+  tolerations:
+    enabled: false
+
+### Globals ###
+global:
+  binaryVersion: master

@@ -1,4 +1,4 @@
-module dagger/gno-dagger
+module dagger/k-3-s
 
 go 1.23.2
 

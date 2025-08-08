@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: gno
+  name: genesis-server-sa
+---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: genesis-file-server
+#   namespace: gno
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: genesis-file-server
+#   template:
+#     metadata:
+apiVersion: v1
+kind: Pod
+metadata:
+  name: genesis-file-server
+  namespace: gno
+  labels:
+    app: genesis-file-server
+spec:
+  serviceAccountName: genesis-server-sa
+  containers:
+  - name: genesis-server
+    image: nginx:alpine
+    ports:
+    - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: genesis-svc
+  namespace: gno
+spec:
+  type: ClusterIP
+  selector:
+    app: genesis-file-server
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
