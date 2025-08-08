@@ -35,7 +35,7 @@ func (m *GnoK3s) SpinCluster(
 ) (string, error) {
 	k3s := dag.K3S("gnoland-test-cluster")
 	kServer := k3s.Server()
-	kServer, err := kServer.Start(ctx)
+	_, err := kServer.Start(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -68,13 +68,12 @@ func (m *GnoK3s) SpinCluster(
 		WithFile("/opt/data/template-values.yaml", helmDataFolder.File("template-values.yaml"), defaultFileOwner).
 		WithWorkdir("/opt/data").
 		WithExec([]string{"kubectl", "create", "ns", "gno"}).
-		WithExec([]string{"kubectl", "create", "sa", "default", "-n", "gno"}).
 		WithExec([]string{"kubectl", "apply", "-k", "."}).
 		WithExec([]string{"kubectl", "apply", "-k", "genesis-server/"}).
 		WithExec([]string{"kubectl", "wait", "--for=condition=ready", "--timeout=30s", "pod", "-l", "app=genesis-file-server", "-n", "gno"}).
 		WithExec([]string{"kubectl", "cp", "/opt/data/genesis.json", "gno/genesis-file-server:/usr/share/nginx/html/genesis.json"}).
-		Terminal().
 		WithExec(strings.Split("helm install val-00 /opt/data/helm --values /opt/data/template-values.yaml --set global.genesisUrl=http://genesis-svc/genesis.json", " ")).
+		WithExec([]string{"kubectl", "wait", "--for=condition=ready", "--timeout=60s", "pod", "-l", "gno.type=validator", "-n", "gno"}).
 		WithExec([]string{"kubectl", "get", "pod", "-A"}).
 		Stdout(ctx)
 }

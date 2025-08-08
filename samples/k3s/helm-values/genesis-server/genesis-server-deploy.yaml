@@ -4,18 +4,6 @@ metadata:
   namespace: gno
   name: genesis-server-sa
 ---
-# apiVersion: apps/v1
-# kind: Deployment
-# metadata:
-#   name: genesis-file-server
-#   namespace: gno
-# spec:
-#   replicas: 1
-#   selector:
-#     matchLabels:
-#       app: genesis-file-server
-#   template:
-#     metadata:
 apiVersion: v1
 kind: Pod
 metadata:
