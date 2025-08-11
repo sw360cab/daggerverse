@@ -10,6 +10,7 @@ import (
 type Gnoland struct{}
 
 type Locator string
+
 type GitGno struct {
 	Locator Locator
 	Ref     string
@@ -19,13 +20,13 @@ type GitGno struct {
 type TargetBinary string
 
 const (
-	Branch      Locator      = "BRANCH"
-	Tag         Locator      = "TAG"
-	Commit      Locator      = "COMMIT"
-	GnoRepo     string       = "https://github.com/gnolang/gno.git"
-	GnolandBin  TargetBinary = "gnoland"
-	GnoKeyBin   TargetBinary = "gnokey"
-	GnoContribs TargetBinary = "gnocontribs"
+	Branch         Locator      = "BRANCH"
+	Tag            Locator      = "TAG"
+	Commit         Locator      = "COMMIT"
+	GnoRepo        string       = "https://github.com/gnolang/gno.git"
+	GnolandBin     TargetBinary = "gnoland"
+	GnokeyBin      TargetBinary = "gnokey"
+	GnocontribsBin TargetBinary = "gnocontribs"
 )
 
 // Clones git repository into a dir
@@ -129,8 +130,8 @@ func (m *Gnoland) BuildImageFromSource(
 	})
 
 	// FIXME: waiting for gnogenesis to be available in Docker targets
-	if binary == GnoContribs {
-		///		return m.CloneMaster()
+	if binary == GnocontribsBin {
+		//		return m.CloneMaster()
 		return dag.Container().
 			From("golang:1.23-alpine").
 			WithEnvVariable("GNOROOT", "/gnoroot").

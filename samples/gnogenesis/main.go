@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"dagger/gno-dagger/internal/dagger"
+	"dagger/gnogenesis/internal/dagger"
 	"fmt"
 	"strings"
 )
@@ -29,9 +29,9 @@ func (m *Gnogenesis) getBinary(target dagger.GitclonerTargetBinary, sourceOpts *
 // Gathers the name of the latest image according to the target
 func (r *Gnogenesis) getMasterImage(target dagger.GitclonerTargetBinary) string {
 	switch target {
-	case dagger.GitclonerTargetBinaryGnocontribs,
-		dagger.GitclonerTargetBinaryGnokey,
-		dagger.GitclonerTargetBinaryGnoland:
+	case dagger.GitclonerTargetBinaryGnocontribsBin,
+		dagger.GitclonerTargetBinaryGnokeyBin,
+		dagger.GitclonerTargetBinaryGnolandBin:
 		return fmt.Sprintf("ghcr.io/gnolang/gno/%s:master", target)
 	default:
 		fmt.Println(target)
@@ -41,7 +41,7 @@ func (r *Gnogenesis) getMasterImage(target dagger.GitclonerTargetBinary) string 
 
 // Generates a genesis file using `gnogenesis` binary
 func (m *Gnogenesis) generate(sourceOpts *dagger.GitclonerBuildImageFromSourceOpts) *dagger.File {
-	return m.getBinary(dagger.GitclonerTargetBinaryGnocontribs, sourceOpts).
+	return m.getBinary(dagger.GitclonerTargetBinaryGnocontribsBin, sourceOpts).
 		WithWorkdir("/gnoroot").
 		WithExec([]string{"gnogenesis", "generate"}).
 		WithExec(strings.Split("gnogenesis balances add -balance-sheet /gnoroot/gno.land/genesis/genesis_balances.txt", " ")).
@@ -81,11 +81,10 @@ func (m *Gnogenesis) runGnolandWithGenesis(
 		UseEntrypoint: true,
 	}
 
-	return m.getBinary(dagger.GitclonerTargetBinaryGnoland, sourceOpts).
+	return m.getBinary(dagger.GitclonerTargetBinaryGnolandBin, sourceOpts).
 		WithExec([]string{"config", "init"}, execOpts).
 		WithExec([]string{"secrets", "init"}, execOpts).
 		WithFile("/gnoroot/genesis.json", m.generate(sourceOpts)).
-		// Terminal().
 		WithExec([]string{"start", "-genesis=/gnoroot/genesis.json", "-log-level=info"}, execOpts).
 		ExitCode(ctx)
 }
@@ -126,16 +125,16 @@ func (m *Gnogenesis) AddValidatorNode(
 	}
 
 	// get node address
-	nodeAddress, _ := m.getBinary(dagger.GitclonerTargetBinaryGnoland, nil).
+	nodeAddress, _ := m.getBinary(dagger.GitclonerTargetBinaryGnolandBin, nil).
 		WithDirectory("/gnoroot/gnoland-data/secrets", secretsFolder).
 		WithExec(strings.Split("secrets get validator_key.address -raw", " "), execOpts).Stdout(ctx)
 
 	// get node pub key
-	nodePubKey, _ := m.getBinary(dagger.GitclonerTargetBinaryGnoland, nil).
+	nodePubKey, _ := m.getBinary(dagger.GitclonerTargetBinaryGnolandBin, nil).
 		WithDirectory("/gnoroot/gnoland-data/secrets", secretsFolder).
 		WithExec(strings.Split("secrets get validator_key.pub_key -raw", " "), execOpts).Stdout(ctx)
 
-	return m.getBinary(dagger.GitclonerTargetBinaryGnocontribs, nil).
+	return m.getBinary(dagger.GitclonerTargetBinaryGnocontribsBin, nil).
 		WithWorkdir("/gnoroot").
 		WithFile("/gnoroot/genesis.json", genesisFile).
 		WithExec([]string{

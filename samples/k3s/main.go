@@ -17,11 +17,15 @@ package main
 import (
 	"context"
 	"dagger/k-3-s/internal/dagger"
+	"fmt"
 	"strings"
 	"time"
 )
 
-const NodeName string = "cluster.node"
+const (
+	NodeName    string = "cluster.node"
+	K3sKubePort int    = 6443
+)
 
 type GnoK3s struct{}
 
@@ -30,8 +34,8 @@ func (m *GnoK3s) SpinCluster(
 	ctx context.Context,
 	// helm-related data folder
 	helmDataFolder *dagger.Directory,
-	// helm template folders
-	helmTemplateFolder *dagger.Directory,
+	// GitHub API token
+	repoToken *dagger.Secret,
 ) (string, error) {
 	k3s := dag.K3S("gnoland-test-cluster")
 	kServer := k3s.Server()
@@ -40,8 +44,19 @@ func (m *GnoK3s) SpinCluster(
 		return "", err
 	}
 
+	defatultEndpoint, _ := kServer.Endpoint(ctx, dagger.ServiceEndpointOpts{Port: K3sKubePort})
 	defaultFileOwner := dagger.ContainerWithFileOpts{Owner: "1001"}
 	defaultDirOwner := dagger.ContainerWithDirectoryOpts{Owner: "1001"}
+
+	// From Git Repo -> helm template folder
+	helmTemplateFolder := dag.
+		Git("github.com/sw360cab/infrastructure", dagger.GitOpts{
+			HTTPAuthUsername: "sw360cab",
+			HTTPAuthToken:    repoToken,
+		}).
+		Branch("betanet").
+		Tree().
+		Directory("k8s/core/helm")
 
 	// Secrets dir
 	gnoSecretsDir := m.generateSecrets()
@@ -58,7 +73,7 @@ func (m *GnoK3s) SpinCluster(
 		WithUser("1001").
 		WithEnvVariable("CACHE_BUSTER", time.Now().Format(time.RFC3339Nano))
 
-	return initContainer.
+	helmInfra := initContainer.
 		WithDirectory("/opt/data/gno-secrets", gnoSecretsDir, defaultDirOwner). // Gnoland secrets and config
 		WithFile("/opt/data/config/config.toml", helmDataFolder.File("config/config.toml"), defaultFileOwner).
 		WithDirectory("/opt/data/genesis-server", helmDataFolder.Directory("genesis-server"), defaultDirOwner).
@@ -73,8 +88,16 @@ func (m *GnoK3s) SpinCluster(
 		WithExec([]string{"kubectl", "wait", "--for=condition=ready", "--timeout=30s", "pod", "-l", "app=genesis-file-server", "-n", "gno"}).
 		WithExec([]string{"kubectl", "cp", "/opt/data/genesis.json", "gno/genesis-file-server:/usr/share/nginx/html/genesis.json"}).
 		WithExec(strings.Split("helm install val-00 /opt/data/helm --values /opt/data/template-values.yaml --set global.genesisUrl=http://genesis-svc/genesis.json", " ")).
-		WithExec([]string{"kubectl", "wait", "--for=condition=ready", "--timeout=60s", "pod", "-l", "gno.type=validator", "-n", "gno"}).
-		WithExec([]string{"kubectl", "get", "pod", "-A"}).
+		WithExec([]string{"kubectl", "wait", "--for=condition=ready", "--timeout=60s", "pod", "-l", "gno.type=rpc", "-n", "gno"}).
+		WithExec([]string{"kubectl", "get", "pod", "-A"})
+
+	rpcPort, _ := helmInfra.
+		WithExec(strings.Split("kubectl get svc -n gno gno-val-svc-01 -o jsonpath='{.spec.ports[?(@.port==26657)].nodePort}'", " ")).Stdout(ctx)
+	rpcPort = strings.ReplaceAll(rpcPort, "'", "")
+	rpcUrl := strings.ReplaceAll(defatultEndpoint, fmt.Sprintf("%d", K3sKubePort), rpcPort)
+
+	return helmInfra.
+		WithExec([]string{"curl", "--retry", "5", "--retry-delay", "5", "--retry-all-errors", fmt.Sprintf("http://%s", rpcUrl)}).
 		Stdout(ctx)
 }
 

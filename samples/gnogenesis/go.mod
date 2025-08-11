@@ -1,4 +1,4 @@
-module dagger/gno-dagger
+module dagger/gnogenesis
 
 go 1.23.2
 
