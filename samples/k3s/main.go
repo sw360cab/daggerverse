@@ -33,9 +33,42 @@ type GnoK3s struct {
 	k3sEndpoint    string
 }
 
+type gnoService struct {
+	name      string
+	deployDir string // folder within project
+	port      int    // service internl port
+	testPath  string // endpoint path to be used while testing readiness
+}
+
 var (
 	defaultFileOwner = dagger.ContainerWithFileOpts{Owner: "1001"}
 	defaultDirOwner  = dagger.ContainerWithDirectoryOpts{Owner: "1001"}
+	gnoServices      = []gnoService{
+		{
+			name:      "gnoweb",
+			deployDir: "core/gnoweb",
+			port:      8888,
+			testPath:  "/",
+		},
+		{
+			name:      "gnofaucet",
+			deployDir: "core/gnofaucet",
+			port:      5050,
+			testPath:  "/health",
+		},
+		{
+			name:      "tx-indexer",
+			deployDir: "core/indexer",
+			port:      8546,
+			testPath:  "/health",
+		},
+	}
+	rpcService = gnoService{
+		name:      "gno-val-svc-01",
+		deployDir: "",
+		port:      26657,
+		testPath:  "",
+	}
 )
 
 // Starts a k3s server and deploys the Gnoland Helm chart by Core Team
@@ -117,19 +150,24 @@ func (m *GnoK3s) SpinCluster(
 		WithExec([]string{"kubectl", "get", "pod", "-A"})
 
 	// test RPC
-	exitCode, err := m.testGnoweb(ctx, m.initContainer, "gno-val-svc-01", 26657, "")
+	exitCode, err := m.testGnoservice(ctx, m.initContainer, rpcService.name, rpcService.port, rpcService.testPath)
 	if err != nil {
 		return exitCode, err
 	}
 
-	// spin gnoweb
-	gnowebContainer := m.spinGnoweb(ctx, "core/gnoweb", "gnoweb")
-
-	// test gnoweb
-	return m.testGnoweb(ctx, gnowebContainer, "gnoweb", 8888, "")
+	for _, svcValues := range gnoServices {
+		// spin service
+		svcContainer := m.spinGnoservice(ctx, svcValues.deployDir, svcValues.name)
+		// test service
+		exitCode, err = m.testGnoservice(ctx, svcContainer, svcValues.name, svcValues.port, svcValues.testPath)
+		if err != nil {
+			break
+		}
+	}
+	return exitCode, err
 }
 
-func (m *GnoK3s) spinGnoweb(
+func (m *GnoK3s) spinGnoservice(
 	ctx context.Context,
 	serviceDirname string,
 	serviceName string) *dagger.Container {
@@ -166,7 +204,7 @@ func (m *GnoK3s) spinGnoweb(
 		"-p", "{\"spec\":{\"type\":\"LoadBalancer\"}}"})
 }
 
-func (m *GnoK3s) testGnoweb(
+func (m *GnoK3s) testGnoservice(
 	ctx context.Context,
 	testableContainer *dagger.Container,
 	serviceName string,
