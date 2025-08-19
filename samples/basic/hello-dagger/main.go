@@ -35,3 +35,13 @@ func (m *GnoDagger) GrepDir(ctx context.Context, directoryArg *dagger.Directory,
 		WithExec([]string{"grep", "-R", pattern, "."}).
 		Stdout(ctx)
 }
+
+// Returns current platform.
+// - forcing linux/amd64 -> x86_64
+// - on Mac Silicon 		 -> aarch64
+func (m *GnoDagger) Platform(ctx context.Context) (string, error) {
+	return dag.Container(dagger.ContainerOpts{Platform: "linux/amd64"}).
+		From("alpine:latest").
+		WithExec([]string{"uname", "-m"}).
+		Stdout(ctx)
+}
