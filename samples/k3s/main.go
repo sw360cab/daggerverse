@@ -18,6 +18,7 @@ import (
 	"context"
 	"dagger/k-3-s/internal/dagger"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 )
@@ -33,42 +34,10 @@ type GnoK3s struct {
 	k3sEndpoint    string
 }
 
-type gnoService struct {
-	name      string
-	deployDir string // folder within project
-	port      int    // service internl port
-	testPath  string // endpoint path to be used while testing readiness
-}
-
 var (
 	defaultFileOwner = dagger.ContainerWithFileOpts{Owner: "1001"}
 	defaultDirOwner  = dagger.ContainerWithDirectoryOpts{Owner: "1001"}
-	gnoServices      = []gnoService{
-		{
-			name:      "gnoweb",
-			deployDir: "core/gnoweb",
-			port:      8888,
-			testPath:  "/",
-		},
-		{
-			name:      "gnofaucet",
-			deployDir: "core/gnofaucet",
-			port:      5050,
-			testPath:  "/health",
-		},
-		{
-			name:      "tx-indexer",
-			deployDir: "core/indexer",
-			port:      8546,
-			testPath:  "/health",
-		},
-	}
-	rpcService = gnoService{
-		name:      "gno-val-svc-01",
-		deployDir: "",
-		port:      26657,
-		testPath:  "",
-	}
+	validators       = map[string]validatorNode{}
 )
 
 // Starts a k3s server and deploys the Gnoland Helm chart by Core Team
@@ -83,7 +52,7 @@ func (m *GnoK3s) SpinCluster(
 	gitBranch string,
 	// validators nodes
 	// +optional
-	// +default=1
+	// +default=2
 	valCounter int,
 	// sentry nodes
 	// +optional
@@ -94,16 +63,16 @@ func (m *GnoK3s) SpinCluster(
 	// +default=2
 	sentryRatio int,
 ) (int, error) {
+	// initialize K3s cluster
 	k3s := dag.K3S("gnoland-test-cluster")
 	kServer := k3s.Server()
 	_, err := kServer.Start(ctx)
 	if err != nil {
 		return -1, err
 	}
-
 	m.k3sEndpoint, _ = kServer.Endpoint(ctx, dagger.ServiceEndpointOpts{Port: K3sKubePort})
 
-	// From Git Repo -> helm template folder
+	// from Git Repo -> Kubernetes folder
 	m.kubeRepoFolder = dag.
 		Git("github.com/sw360cab/infrastructure", dagger.GitOpts{
 			HTTPAuthUsername: "sw360cab",
@@ -116,12 +85,30 @@ func (m *GnoK3s) SpinCluster(
 	// Helm template dir
 	helmTemplateFolder := m.kubeRepoFolder.Directory("core/helm")
 
-	// Secrets dir
-	gnoSecretsDir := m.generateSecrets()
+	// generate basic genesis
+	genesisFile := dag.Gnogenesis().Generate()
 
-	// Genesis file
-	genesisFile := m.generateGenesis(NodeName, gnoSecretsDir)
+	// generate secrets for validator and add them to genesis
+	for i := range valCounter {
+		nodeName := fmt.Sprintf("gnocore-val-%02d", i+1)
+		// Secrets dir
+		gnoSecretsDir := m.generateSecrets()
+		// Genesis file
+		genesisFile = m.generateGenesis(nodeName, gnoSecretsDir)
+		validators[nodeName] = validatorNode{
+			name:          nodeName,
+			secretsFolder: gnoSecretsDir,
+		}
+	}
 
+	// generate RPC node - not added to genesis
+	rpcNode := validatorNode{
+		name:            fmt.Sprintf("gnocore-rpc-%02d", 1),
+		secretsFolder:   m.generateSecrets(),
+		configOverrides: RpcHelmValues,
+	}
+
+	// initalize cluster env
 	m.initContainer = dag.Container().From("alpine/helm").
 		WithoutEntrypoint().
 		WithExec([]string{"apk", "add", "kubectl"}).
@@ -132,33 +119,40 @@ func (m *GnoK3s) SpinCluster(
 		WithEnvVariable("CACHE_BUSTER", time.Now().Format(time.RFC3339Nano)).
 		WithExec([]string{"kubectl", "create", "ns", "gno"})
 
+	// TODO: sentry/validator config
+
+	// bootstrap genesis server and helm files
 	m.initContainer = m.initContainer.
-		WithDirectory("/opt/data/gno-secrets", gnoSecretsDir, defaultDirOwner). // Gnoland secrets and config
-		WithFile("/opt/data/config/config.toml", helmDataFolder.File("config/config.toml"), defaultFileOwner).
 		WithDirectory("/opt/data/genesis-server", helmDataFolder.Directory("genesis-server"), defaultDirOwner).
 		WithFile("/opt/data/genesis.json", genesisFile, defaultFileOwner).
 		WithFile("/opt/data/kustomization.yaml", helmDataFolder.File("kustomization.yaml"), defaultFileOwner).
 		WithDirectory("/opt/data/helm", helmTemplateFolder, defaultDirOwner). // Helm template for Validator
 		WithFile("/opt/data/template-values.yaml", helmDataFolder.File("template-values.yaml"), defaultFileOwner).
 		WithWorkdir("/opt/data").
-		WithExec([]string{"kubectl", "apply", "-k", "."}).
 		WithExec([]string{"kubectl", "apply", "-k", "genesis-server/"}).
 		WithExec([]string{"kubectl", "wait", "--for=condition=ready", "--timeout=30s", "pod", "-l", "app=genesis-file-server", "-n", "gno"}).
-		WithExec([]string{"kubectl", "cp", "/opt/data/genesis.json", "gno/genesis-file-server:/usr/share/nginx/html/genesis.json"}).
-		WithExec(strings.Split("helm install val-00 /opt/data/helm --values /opt/data/template-values.yaml --set global.genesisUrl=http://genesis-svc/genesis.json --set gnoland.config.rpc.laddr=tcp://0.0.0.0:26657", " ")).
-		WithExec([]string{"kubectl", "wait", "--for=condition=ready", "--timeout=60s", "pod", "-l", "gno.type=rpc", "-n", "gno"}).
-		WithExec([]string{"kubectl", "get", "pod", "-A"})
+		WithExec([]string{"kubectl", "cp", "/opt/data/genesis.json", "gno/genesis-file-server:/usr/share/nginx/html/genesis.json"})
 
-	// test RPC
+	// Spin validator nodes
+	for valName, valNode := range validators {
+		m.spinValidatorNode(valName, valNode, helmDataFolder)
+	}
+
+	// Spin RPC node
+	m.spinValidatorNode(rpcNode.name, rpcNode, helmDataFolder)
+
+	// Test RPC connection
 	exitCode, err := m.testGnoservice(ctx, m.initContainer, rpcService.name, rpcService.port, rpcService.testPath)
 	if err != nil {
 		return exitCode, err
 	}
+	// TODO: Test blocks are produced
 
+	// launch collateral services
 	for _, svcValues := range gnoServices {
-		// spin service
-		svcContainer := m.spinGnoservice(ctx, svcValues.deployDir, svcValues.name)
-		// test service
+		// spin gno service
+		svcContainer := m.spinGnoservice(ctx, svcValues.name, svcValues.deployDir)
+		// test gno service
 		exitCode, err = m.testGnoservice(ctx, svcContainer, svcValues.name, svcValues.port, svcValues.testPath)
 		if err != nil {
 			break
@@ -167,20 +161,38 @@ func (m *GnoK3s) SpinCluster(
 	return exitCode, err
 }
 
+// Spins a generic node that can be either a validator, sentry or rpc node
+func (m *GnoK3s) spinValidatorNode(valName string, valNode validatorNode, helmDataFolder *dagger.Directory) *dagger.Container {
+	homeFolder := fmt.Sprintf("/opt/data/%s", valName)
+	return m.initContainer.
+		// Gnoland secrets and config
+		WithFile(fmt.Sprintf("%s/config/config.toml", homeFolder), helmDataFolder.File("config/config.toml"), defaultFileOwner).
+		WithDirectory(fmt.Sprintf("%s/gno-secrets", homeFolder), valNode.secretsFolder, defaultDirOwner).
+		WithExec([]string{"sh", "-c", fmt.Sprintf("sed -e 's/gnocore-val-01/%s/' /opt/data/kustomization.yaml > %s/kustomization.yaml", valName, homeFolder)}).
+		WithExec([]string{"kubectl", "apply", "-k", homeFolder}).
+		// Helm values and template
+		WithExec([]string{"sh", "-c", fmt.Sprintf("sed -e 's/gnocore-val-01/%s/' /opt/data/template-values.yaml > %s/values.yaml", valName, homeFolder)}).
+		WithExec(slices.Concat([]string{"helm", "install", valName, "/opt/data/helm", "--values", fmt.Sprintf("%s/values.yaml", homeFolder),
+			"--set", "global.genesisUrl=http://genesis-svc/genesis.json"}, valNode.GetOverridesHelm())).
+		WithExec([]string{"kubectl", "wait", "--for=condition=ready", "--timeout=60s", "pod", "-l", fmt.Sprintf("gno.name=%s", valName), "-n", "gno"})
+}
+
+// Spins up a Gno service which is not directly a validator node one
 func (m *GnoK3s) spinGnoservice(
 	ctx context.Context,
+	serviceName string,
 	serviceDirname string,
-	serviceName string) *dagger.Container {
+) *dagger.Container {
 	// Gnoweb
-	gnowebFiles := m.kubeRepoFolder.Directory(serviceDirname).Filter(dagger.DirectoryFilterOpts{
+	k8sYamlFiles := m.kubeRepoFolder.Directory(serviceDirname).Filter(dagger.DirectoryFilterOpts{
 		Include: []string{"*/*yaml"},
 		Exclude: []string{"ingress/*"},
 	})
-	filterdEntries, _ := gnowebFiles.Entries(ctx)
+	filterdEntries, _ := k8sYamlFiles.Entries(ctx)
 
-	gnowebContainer := m.initContainer
+	gnoserviceContainer := m.initContainer
 	var kubectlFlag string
-	filePaths := getFiles(ctx, gnowebFiles, filterdEntries)
+	filePaths := getFiles(ctx, k8sYamlFiles, filterdEntries)
 
 	// deploy resources
 	for _, path := range filePaths {
@@ -191,19 +203,22 @@ func (m *GnoK3s) spinGnoservice(
 		} else {
 			kubectlFlag = "-f"
 		}
-		gnowebContainer = gnowebContainer.
-			WithEnvVariable("KKK", strings.Join(filePaths, ",")).
-			WithFile("/opt/data/"+path, gnowebFiles.File(path), defaultFileOwner).
+		gnoserviceContainer = gnoserviceContainer.
+			WithFile("/opt/data/"+path, k8sYamlFiles.File(path), defaultFileOwner).
 			WithWorkdir("/opt/data").
 			WithExec([]string{"kubectl", "apply", kubectlFlag, deployPath})
 	}
 	// path service to make it testable
-	return gnowebContainer.WithExec([]string{"kubectl", "patch",
+	return gnoserviceContainer.WithExec([]string{"kubectl", "patch",
 		"service", serviceName,
 		"-n", "gno",
 		"-p", "{\"spec\":{\"type\":\"LoadBalancer\"}}"})
 }
 
+// test a gno service at the Given Service Url obtained mixing
+// - the service name
+// - the service port randomly assigned by LoadBalancer, obtained through servicePort
+// - the url path to test
 func (m *GnoK3s) testGnoservice(
 	ctx context.Context,
 	testableContainer *dagger.Container,

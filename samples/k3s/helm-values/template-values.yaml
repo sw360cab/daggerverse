@@ -1,15 +1,15 @@
 app:
-  name: gno-val-01
+  name: gnocore-val-01
   role: validator
   type: rpc
 
 storage:
   capacity: 1Gi # 120Gi
   local:
-    path: /opt/gnoland/validator/1/data
+    path: /opt/gnoland/gnocore-val-01/data
 
 svc:
-  name: gno-val-svc-01
+  name: gnocore-val-01-svc
   type: LoadBalancer
 
 ingress:

@@ -1,5 +1,5 @@
 configMapGenerator:
-- name: gno-val-01-config
+- name: gnocore-val-01-config
   namespace: gno
   options:
     disableNameSuffixHash: true
@@ -8,7 +8,7 @@ configMapGenerator:
   - priv_validator_state.json=gno-secrets/priv_validator_state.json
 
 secretGenerator:
-- name: gno-val-01-secrets
+- name: gnocore-val-01-secrets
   namespace: gno
   options:
     disableNameSuffixHash: true
