@@ -1,6 +1,6 @@
 module dagger/k-3-s
 
-go 1.23.2
+go 1.24.4
 
 require (
 	github.com/99designs/gqlgen v0.17.75
