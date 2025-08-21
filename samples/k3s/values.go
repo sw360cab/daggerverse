@@ -1,9 +1,13 @@
 package main
 
 const (
-	HelmValuesValidator = "TODO"
-	RpcListenYaml       = "gnoland.config.rpc.laddr"
-	P2pPexYaml          = "gnoland.config.p2p.pex"
+	RpcListenYaml     = "gnoland.config.rpc.laddr"
+	P2pPexYaml        = "gnoland.config.p2p.pex"
+	P2pPeersYaml      = "gnoland.config.p2p.persistent_peers"
+	P2pPrivateIdsYaml = "gnoland.config.p2p.private_peer_ids"
+	P2pSeedYaml       = "gnoland.config.p2p.seeds"
+	P2pPort           = "26656"
+	GnolandBinary     = "ghcr.io/gnolang/gno/gnoland:master"
 )
 
 var (

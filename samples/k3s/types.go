@@ -12,20 +12,15 @@ type gnoService struct {
 	testPath  string // endpoint path to be used while testing readiness
 }
 
-// type validatorConfig struct {
-// 	bootnodes    []string // p2p.seeds
-// 	privatePeers []string // p2p.private_peer_ids -> only for sentries
-// }
-
-type validatorNode struct {
-	name          string
-	secretsFolder *dagger.Directory
-	// p2pOverrides    *validatorConfig
+type networkNode struct {
+	name            string
+	nodeAddress     string // node p2p address
+	secretsFolder   *dagger.Directory
 	configOverrides map[string]string
 }
 
 // Returns all the ovverides config params ready for helm ... -set key=value
-func (v *validatorNode) GetOverridesHelm() (configItems []string) {
+func (v *networkNode) GetOverridesHelm() (configItems []string) {
 	for key, val := range v.configOverrides {
 		configItems = append(configItems, "--set", fmt.Sprintf("%s=%s", key, val))
 	}
