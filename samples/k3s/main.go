@@ -64,10 +64,6 @@ func (m *GnoK3s) SpinCluster(
 	// +default=2
 	sentryRatio int,
 ) (int, error) {
-	// init vars
-	validators := []networkNode{}
-	sentries := []networkNode{}
-
 	if err := IsValidTopology(valCounter, sentryCounter, sentryRatio); err != nil {
 		return -1, err
 	}
@@ -98,91 +94,22 @@ func (m *GnoK3s) SpinCluster(
 	m.genesisFile = dag.Gnogenesis().Generate()
 
 	// generate secrets for validator and add them to genesis
-	for i := range valCounter {
-		nodeName := fmt.Sprintf("gnocore-val-%02d", i+1)
-		// Secrets dir
-		gnoSecretsDir := m.generateSecrets()
-		// Genesis file
-		m.genesisFile = m.generateGenesis(nodeName, gnoSecretsDir)
-		validators = append(validators, networkNode{
-			name:          nodeName,
-			nodeAddress:   getNodeAddress(ctx, nodeName, gnoSecretsDir),
-			secretsFolder: gnoSecretsDir,
-		})
-	}
+	validators := m.setupValidatorNodes(ctx, valCounter)
 
-	// generate secrets for sentries
-	// and configure validator address according to `sentryRatio`
-	for i := range sentryCounter {
-		if sentryCounter == 0 {
-			break
-		}
-		nodeName := fmt.Sprintf("gnocore-sentry-%02d", i+1)
-		// Secrets dir
-		gnoSecretsDir := m.generateSecrets()
-
-		// get topology addresses
-		nodeAddress := getNodeAddress(ctx, nodeName, gnoSecretsDir)
-		// this sentry
-		peers := []string{nodeAddress}
-		privateIds := []string{}
-		// peer validators
-		for j := (i * sentryRatio); j < (i+1)*sentryRatio; j++ {
-			if j > len(validators)-1 { // no more validators to be added
-				break
-			}
-			validatorPrivateId, err := dag.Gnogenesis().GetNodeID(ctx, gnoSecretsDir)
-			if err != nil {
-				return -1, err
-			}
-			privateIds = append(privateIds, validatorPrivateId)
-			peers = append(peers, validators[j].nodeAddress)
-		}
-
-		// sentry overrides
-		overrides := maps.Clone(SentryHelmValues)
-		overrides[P2pPeersHelmKey] = strings.Join(peers, "\\,")
-		overrides[P2pSeedHelmKey] = strings.Join(peers, "\\,") // same as peers
-		overrides[P2pPrivateIdsHelmKey] = strings.Join(privateIds, "\\,")
-
-		sentries = append(sentries, networkNode{
-			name:            nodeName,
-			nodeAddress:     nodeAddress,
-			secretsFolder:   gnoSecretsDir,
-			configOverrides: overrides,
-		})
-	}
-
-	// add other sentries to each sentry node config
-	for index, sentryNode := range sentries {
-		for otherIndex, otherSentryNode := range sentries {
-			if otherIndex != index {
-				sentryNode.configOverrides[P2pPeersHelmKey] += "\\," + otherSentryNode.nodeAddress
-			}
-		}
-	}
-
-	// configure validators P2P config overrides
-	for index, validatorNode := range validators {
-		if sentryCounter == 0 {
-			break
-		}
-		peers := []string{sentries[index/sentryRatio].nodeAddress} // add sentry
-		for otherIndex := (index / sentryRatio) * sentryRatio; otherIndex < ((index/sentryRatio)+1)*sentryRatio; otherIndex++ {
-			if otherIndex != index {
-				peers = append(peers, validatorNode.nodeAddress)
-			}
-		}
-		peersStr := strings.Join(peers, "\\,")
-		validatorNode.configOverrides = map[string]string{}
-		validatorNode.configOverrides[P2pPeersHelmKey] = peersStr
-		validatorNode.configOverrides[P2pSeedHelmKey] = peersStr
+	// generate and configure sentry nodes and adjust configs
+	sentries, err := m.setupSentryNodes(ctx, validators, sentryCounter, sentryCounter)
+	if err != nil {
+		return -1, err
 	}
 
 	// generate RPC node - not added to genesis
 	peers := []string{}
-	for _, sentryNode := range sentries {
-		peers = append(peers, sentryNode.nodeAddress)
+	netNodes := sentries
+	if len(netNodes) == 0 {
+		netNodes = validators // fallback to validators if sentry is empty
+	}
+	for _, netNode := range netNodes {
+		peers = append(peers, netNode.nodeAddress)
 	}
 	rpcNode := networkNode{
 		name:            fmt.Sprintf("gnocore-rpc-%02d", 1),
@@ -228,17 +155,18 @@ func (m *GnoK3s) SpinCluster(
 	if err != nil {
 		return exitCode, err
 	}
-	// TODO: test blocks are being produced
-	_, err = m.GetSvcExposedEndpoint(ctx, m.initContainer, rpcService.name, rpcService.port)
+	// test that blocks are being produced
+	rpcUrl, err := m.GetSvcExposedEndpoint(ctx, m.initContainer, rpcService.name, rpcService.port)
 	if err != nil {
 		return -1, err
 	}
-	// exitCode, err = m.initContainer.
-	// 	WithExec([]string{"sh", "-c", fmt.Sprintf("curl --retry 5 --retry-delay 5 --retry-all-errors -fsS %s/status | tee /dev/stderr | jq -r '.result.sync_info.latest_block_height') -ge 1", rpcUrl)}).
-	// 	ExitCode(ctx)
-	// if err != nil {
-	// 	return exitCode, err
-	// }
+	exitCode, err = m.initContainer.
+		WithExec([]string{"sh", "-c", fmt.Sprintf("[ $(curl -fsS --retry 5 --retry-delay 5 --retry-all-errors -fsS %s/status | jq -r '.result.sync_info.latest_block_height') -ge 1 ]", rpcUrl)}).
+		// Terminal().
+		ExitCode(ctx)
+	if err != nil {
+		return exitCode, err
+	}
 
 	// launch collateral services
 	for _, svcValues := range gnoServices {
