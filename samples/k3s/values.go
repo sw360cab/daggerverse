@@ -1,21 +1,28 @@
 package main
 
 const (
-	RpcListenYaml     = "gnoland.config.rpc.laddr"
-	P2pPexYaml        = "gnoland.config.p2p.pex"
-	P2pPeersYaml      = "gnoland.config.p2p.persistent_peers"
-	P2pPrivateIdsYaml = "gnoland.config.p2p.private_peer_ids"
-	P2pSeedYaml       = "gnoland.config.p2p.seeds"
-	P2pPort           = "26656"
-	GnolandBinary     = "ghcr.io/gnolang/gno/gnoland:master"
+	AppTypeHelmKey       = "app.type"
+	SvcTypeHelmKey       = "svc.type"
+	RpcListenHelmKey     = "gnoland.config.rpc.laddr"
+	P2pPexHelmKey        = "gnoland.config.p2p.pex"
+	P2pPeersHelmKey      = "gnoland.config.p2p.persistent_peers"
+	P2pPrivateIdsHelmKey = "gnoland.config.p2p.private_peer_ids"
+	P2pSeedHelmKey       = "gnoland.config.p2p.seeds"
+	SvcLoadBalancerValue = "LoadBalancer"
+	SvcSuffix            = "-svc"
+	P2pPort              = "26656"
+	GnolandBinary        = "ghcr.io/gnolang/gno/gnoland:master"
 )
 
 var (
 	RpcHelmValues = map[string]string{
-		RpcListenYaml: "tcp://0.0.0.0:26657",
+		AppTypeHelmKey:   "rpc",
+		SvcTypeHelmKey:   SvcLoadBalancerValue,
+		RpcListenHelmKey: "tcp://0.0.0.0:26657",
 	}
 	SentryHelmValues = map[string]string{
-		P2pPexYaml: "true",
+		P2pPexHelmKey: "true",
+		// SvcTypeHelmKey: SvcLoadBalancerValue,
 	}
 	gnoServices = []gnoService{
 		{

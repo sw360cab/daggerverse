@@ -68,6 +68,10 @@ func (m *GnoK3s) SpinCluster(
 	validators := []networkNode{}
 	sentries := []networkNode{}
 
+	if err := IsValidTopology(valCounter, sentryCounter, sentryRatio); err != nil {
+		return -1, err
+	}
+
 	// initialize K3s cluster
 	k3s := dag.K3S(ClusterName)
 	kServer := k3s.Server()
@@ -102,13 +106,13 @@ func (m *GnoK3s) SpinCluster(
 		m.genesisFile = m.generateGenesis(nodeName, gnoSecretsDir)
 		validators = append(validators, networkNode{
 			name:          nodeName,
-			nodeAddress:   getNodeAddess(ctx, nodeName, gnoSecretsDir),
+			nodeAddress:   getNodeAddress(ctx, nodeName, gnoSecretsDir),
 			secretsFolder: gnoSecretsDir,
 		})
 	}
 
 	// generate secrets for sentries
-	// and cofigure validator address according to `sentryRatio`
+	// and configure validator address according to `sentryRatio`
 	for i := range sentryCounter {
 		if sentryCounter == 0 {
 			break
@@ -118,7 +122,7 @@ func (m *GnoK3s) SpinCluster(
 		gnoSecretsDir := m.generateSecrets()
 
 		// get topology addresses
-		nodeAddress := getNodeAddess(ctx, nodeName, gnoSecretsDir)
+		nodeAddress := getNodeAddress(ctx, nodeName, gnoSecretsDir)
 		// this sentry
 		peers := []string{nodeAddress}
 		privateIds := []string{}
@@ -127,19 +131,19 @@ func (m *GnoK3s) SpinCluster(
 			if j > len(validators)-1 { // no more validators to be added
 				break
 			}
-			// validatorPrivateId, err := dag.Gnogenesis().GetNodeID(ctx, gnoSecretsDir)
-			// if err != nil {
-			// 	return -1, err
-			// }
-			// privateIds = append(privateIds, validatorPrivateId)
+			validatorPrivateId, err := dag.Gnogenesis().GetNodeID(ctx, gnoSecretsDir)
+			if err != nil {
+				return -1, err
+			}
+			privateIds = append(privateIds, validatorPrivateId)
 			peers = append(peers, validators[j].nodeAddress)
 		}
 
 		// sentry overrides
 		overrides := maps.Clone(SentryHelmValues)
-		overrides[P2pPeersYaml] = strings.Join(peers, ",")
-		overrides[P2pSeedYaml] = strings.Join(peers, ",") // same as peers
-		overrides[P2pPrivateIdsYaml] = strings.Join(privateIds, ",")
+		overrides[P2pPeersHelmKey] = strings.Join(peers, "\\,")
+		overrides[P2pSeedHelmKey] = strings.Join(peers, "\\,") // same as peers
+		overrides[P2pPrivateIdsHelmKey] = strings.Join(privateIds, "\\,")
 
 		sentries = append(sentries, networkNode{
 			name:            nodeName,
@@ -153,7 +157,7 @@ func (m *GnoK3s) SpinCluster(
 	for index, sentryNode := range sentries {
 		for otherIndex, otherSentryNode := range sentries {
 			if otherIndex != index {
-				sentryNode.configOverrides[P2pPeersYaml] += "," + otherSentryNode.nodeAddress
+				sentryNode.configOverrides[P2pPeersHelmKey] += "\\," + otherSentryNode.nodeAddress
 			}
 		}
 	}
@@ -169,18 +173,25 @@ func (m *GnoK3s) SpinCluster(
 				peers = append(peers, validatorNode.nodeAddress)
 			}
 		}
-		peersStr := strings.Join(peers, ",")
+		peersStr := strings.Join(peers, "\\,")
 		validatorNode.configOverrides = map[string]string{}
-		validatorNode.configOverrides[P2pPeersYaml] = peersStr
-		validatorNode.configOverrides[P2pSeedYaml] = peersStr
+		validatorNode.configOverrides[P2pPeersHelmKey] = peersStr
+		validatorNode.configOverrides[P2pSeedHelmKey] = peersStr
 	}
 
 	// generate RPC node - not added to genesis
+	peers := []string{}
+	for _, sentryNode := range sentries {
+		peers = append(peers, sentryNode.nodeAddress)
+	}
 	rpcNode := networkNode{
 		name:            fmt.Sprintf("gnocore-rpc-%02d", 1),
 		secretsFolder:   m.generateSecrets(),
-		configOverrides: RpcHelmValues,
+		configOverrides: maps.Clone(RpcHelmValues),
 	}
+	peersStr := strings.Join(peers, "\\,")
+	rpcNode.configOverrides[P2pPeersHelmKey] = peersStr
+	rpcNode.configOverrides[P2pSeedHelmKey] = peersStr
 
 	// initalize cluster env
 	m.initContainer = dag.Container().From("alpine/helm").
@@ -248,8 +259,10 @@ func (m *GnoK3s) spinNetworkNode(valName string, valNode networkNode, helmDataFo
 	return m.initContainer.
 		WithFile(fmt.Sprintf("%s/config/config.toml", homeFolder), helmDataFolder.File("config/config.toml"), defaultFileOwner).
 		WithDirectory(fmt.Sprintf("%s/gno-secrets", homeFolder), valNode.secretsFolder, defaultDirOwner).
+		// replace config map name
 		WithExec([]string{"sh", "-c", fmt.Sprintf("sed -e 's/gnocore-val-01/%s/' /opt/data/kustomization.yaml > %s/kustomization.yaml", valName, homeFolder)}).
 		WithExec([]string{"kubectl", "apply", "-k", homeFolder}).
+		// replace helm values for template
 		WithExec([]string{"sh", "-c", fmt.Sprintf("sed -e 's/gnocore-val-01/%s/' /opt/data/template-values.yaml > %s/values.yaml", valName, homeFolder)}).
 		WithExec(slices.Concat([]string{"helm", "install", valName, "/opt/data/helm", "--values", fmt.Sprintf("%s/values.yaml", homeFolder),
 			"--set", "global.genesisUrl=http://genesis-svc/genesis.json"}, valNode.GetOverridesHelm())).
@@ -263,15 +276,15 @@ func (m *GnoK3s) spinGnoservice(
 	serviceDirname string,
 ) *dagger.Container {
 	// Gnoweb
-	k8sYamlFiles := m.kubeRepoFolder.Directory(serviceDirname).Filter(dagger.DirectoryFilterOpts{
+	k8sHelmKeyFiles := m.kubeRepoFolder.Directory(serviceDirname).Filter(dagger.DirectoryFilterOpts{
 		Include: []string{"*/*yaml"},
 		Exclude: []string{"ingress/*"},
 	})
-	filterdEntries, _ := k8sYamlFiles.Entries(ctx)
+	filterdEntries, _ := k8sHelmKeyFiles.Entries(ctx)
 
 	gnoserviceContainer := m.initContainer
 	var kubectlFlag string
-	filePaths := getFiles(ctx, k8sYamlFiles, filterdEntries)
+	filePaths := getFiles(ctx, k8sHelmKeyFiles, filterdEntries)
 
 	// deploy resources
 	for _, path := range filePaths {
@@ -283,7 +296,7 @@ func (m *GnoK3s) spinGnoservice(
 			kubectlFlag = "-f"
 		}
 		gnoserviceContainer = gnoserviceContainer.
-			WithFile("/opt/data/"+path, k8sYamlFiles.File(path), defaultFileOwner).
+			WithFile("/opt/data/"+path, k8sHelmKeyFiles.File(path), defaultFileOwner).
 			WithWorkdir("/opt/data").
 			WithExec([]string{"kubectl", "apply", kubectlFlag, deployPath})
 	}
@@ -334,8 +347,7 @@ func (m *GnoK3s) testGnoservice(
 	}
 
 	return testableContainer.
-		WithExec([]string{"curl", "--retry", "5", "--retry-delay", "5", "--retry-all-errors", fmt.Sprintf("http://%s%s", svcUrl, testPath)}).
-		// Terminal().
+		WithExec([]string{"curl", "-fsS", "--retry", "5", "--retry-delay", "5", "--retry-all-errors", fmt.Sprintf("http://%s%s", svcUrl, testPath)}).
 		ExitCode(ctx)
 }
 

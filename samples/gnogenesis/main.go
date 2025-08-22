@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+// use entrypoint
+var execOpts = dagger.ContainerWithExecOpts{
+	UseEntrypoint: true,
+}
+
 type Gnogenesis struct{}
 
 type GitLocator dagger.GitclonerLocator
@@ -76,11 +81,6 @@ func (m *Gnogenesis) Generate() *dagger.File {
 func (m *Gnogenesis) runGnolandWithGenesis(
 	ctx context.Context,
 	sourceOpts *dagger.GitclonerBuildImageFromSourceOpts) (int, error) {
-	// use entrypoint
-	execOpts := dagger.ContainerWithExecOpts{
-		UseEntrypoint: true,
-	}
-
 	return m.getBinary(dagger.GitclonerTargetBinaryGnolandBin, sourceOpts).
 		WithExec([]string{"config", "init"}, execOpts).
 		WithExec([]string{"secrets", "init"}, execOpts).
@@ -113,17 +113,24 @@ func (m *Gnogenesis) RunGnolandWithGenesisUsingCodebase(
 	return m.runGnolandWithGenesis(ctx, srcDir)
 }
 
+// Gets node id from secret folder
+func (m *Gnogenesis) GetNodeId(ctx context.Context, secretsFolder *dagger.Directory) (string, error) {
+	nodeId, err := m.getBinary(dagger.GitclonerTargetBinaryGnolandBin, nil).
+		WithDirectory("/gnoroot/gnoland-data/secrets", secretsFolder).
+		WithExec(strings.Split("secrets get node_id.id -raw", " "), execOpts).Stdout(ctx)
+
+	if err != nil {
+		return "", err
+	}
+	return strings.ReplaceAll(nodeId, "\n", ""), nil
+}
+
 // Adds a validator node to the current genesis
 func (m *Gnogenesis) AddValidatorNode(
 	ctx context.Context,
 	nodeName string,
 	genesisFile *dagger.File,
 	secretsFolder *dagger.Directory) *dagger.File {
-	// use entrypoint
-	execOpts := dagger.ContainerWithExecOpts{
-		UseEntrypoint: true,
-	}
-
 	// get node address
 	nodeAddress, _ := m.getBinary(dagger.GitclonerTargetBinaryGnolandBin, nil).
 		WithDirectory("/gnoroot/gnoland-data/secrets", secretsFolder).

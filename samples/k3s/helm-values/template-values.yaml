@@ -1,7 +1,6 @@
 app:
   name: gnocore-val-01
   role: validator
-  type: rpc
 
 storage:
   capacity: 1Gi # 120Gi
@@ -10,7 +9,6 @@ storage:
 
 svc:
   name: gnocore-val-01-svc
-  type: LoadBalancer
 
 ingress:
   enabled: false
