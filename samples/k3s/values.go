@@ -29,7 +29,7 @@ var (
 			name:      "gnoweb",
 			deployDir: "core/gnoweb",
 			port:      8888,
-			testPath:  "/",
+			testPath:  "/status.json",
 		},
 		{
 			name:      "gnofaucet",

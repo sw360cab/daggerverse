@@ -97,7 +97,7 @@ func (m *GnoK3s) SpinCluster(
 	validators := m.setupValidatorNodes(ctx, valCounter)
 
 	// generate and configure sentry nodes and adjust configs
-	sentries, err := m.setupSentryNodes(ctx, validators, sentryCounter, sentryCounter)
+	sentries, err := m.setupSentryNodes(ctx, validators, sentryCounter, sentryRatio)
 	if err != nil {
 		return -1, err
 	}
@@ -150,7 +150,7 @@ func (m *GnoK3s) SpinCluster(
 
 	// spin RPC node
 	m.initContainer = m.spinNetworkNode(rpcNode.name, rpcNode, helmDataFolder)
-	//test RPC connection
+	// test RPC connection
 	exitCode, err := m.testGnoservice(ctx, m.initContainer, rpcService.name, rpcService.port, rpcService.testPath)
 	if err != nil {
 		return exitCode, err
@@ -161,8 +161,8 @@ func (m *GnoK3s) SpinCluster(
 		return -1, err
 	}
 	exitCode, err = m.initContainer.
+		WithExec([]string{"sleep", "10"}).
 		WithExec([]string{"sh", "-c", fmt.Sprintf("[ $(curl -fsS --retry 5 --retry-delay 5 --retry-all-errors -fsS %s/status | jq -r '.result.sync_info.latest_block_height') -ge 1 ]", rpcUrl)}).
-		// Terminal().
 		ExitCode(ctx)
 	if err != nil {
 		return exitCode, err
@@ -275,7 +275,7 @@ func (m *GnoK3s) testGnoservice(
 	}
 
 	return testableContainer.
-		WithExec([]string{"curl", "-fsS", "--retry", "5", "--retry-delay", "5", "--retry-all-errors", fmt.Sprintf("http://%s%s", svcUrl, testPath)}).
+		WithExec([]string{"curl", "-fsS", "--retry", "5", "--retry-delay", "10", "--retry-all-errors", fmt.Sprintf("http://%s%s", svcUrl, testPath)}).
 		ExitCode(ctx)
 }
 
