@@ -1,4 +1,4 @@
-// A generated module for K3S functions
+// Run a full cluster into K3s using repository files
 package main
 
 import (

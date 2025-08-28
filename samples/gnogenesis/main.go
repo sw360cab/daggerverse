@@ -16,19 +16,14 @@ type Gnogenesis struct{}
 
 type GitLocator dagger.GitclonerLocator
 
-// Gathers the built binary  according to target
+// Gathers the built binary according to target
 func (m *Gnogenesis) getBinary(target dagger.GitclonerTargetBinary, sourceOpts *dagger.GitclonerBuildImageFromSourceOpts) *dagger.Container {
 	if sourceOpts == nil {
 		return dag.Container().
 			From(m.getMasterImage(target))
 	}
 
-	return dag.Gitcloner().BuildImageFromSource(target,
-		dagger.GitclonerBuildImageFromSourceOpts{
-			Locator: dagger.GitclonerLocatorCommit,
-			Ref:     "632a38a7ba3b9b88cd85cd8b345f215d9015fdca",
-			Fork:    "aeddi",
-		})
+	return dag.Gitcloner().BuildImageFromSource(target, *sourceOpts)
 }
 
 // Gathers the name of the latest image according to the target
