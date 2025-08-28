@@ -59,7 +59,7 @@ func (m *Gnokey) MakeTx(ctx context.Context, homeDirKey *dagger.Directory, passw
 		WithServiceBinding("gno", m.RunGnolandValidator(pubKey)).
 		WithDirectory(destMountDir, m.loadGnoPackage(RealmName)).
 		WithExec([]string{"maketx", "addpkg", "-home=/gnohome", "-insecure-password-stdin", "-chainid", ChainId,
-			"-gas-fee", "1000000ugnot", "-gas-wanted", "3000000", "-deposit", "100000000ugnot",
+			"-gas-fee", "1000000ugnot", "-gas-wanted", "3000000", "-max-deposit", "100000000ugnot",
 			"-remote", "gno:26657",
 			"-pkgdir", destMountDir, "-pkgpath", fmt.Sprintf("gno.land/%s", RealmName), KeyId},
 			dagger.ContainerWithExecOpts{
