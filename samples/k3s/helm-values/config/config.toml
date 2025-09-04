@@ -2,15 +2,19 @@
 # Mechanism to connect to the ABCI application: socket | grpc
 abci = "socket"
 
-# Database backend: goleveldb | boltdb
-# * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
+# Database backend: pebbledb | goleveldb | boltdb
+#* pebbledb (github.com/cockroachdb/pebble)
 #  - pure go
 #  - stable
-# * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)
+#* goleveldb (github.com/syndtr/goleveldb)
+#  - pure go
+#  - stable
+#  - use goleveldb build tag
+#* boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)
 #  - EXPERIMENTAL
 #  - may be faster is some use-cases (random reads - indexer)
 #  - use boltdb build tag (go build -tags boltdb)
-db_backend = "goleveldb"
+db_backend = "pebbledb"
 
 # Database directory
 db_dir = "db"
