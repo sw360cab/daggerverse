@@ -33,21 +33,6 @@ func (s *Supernova) RunTest(
 		transactions = DEFAULT_TRANSACTIONS
 	}
 
-	// gnoSvc := dag.Gnoland().RunGnolandNode()
-
-	// waitSvc, err := dag.Container().
-	// 	From("alpine:3").
-	// 	// invalidate cache
-	// 	WithEnvVariable("CACHE_BUSTER", time.Now().Format(time.RFC3339Nano)).
-	// 	WithServiceBinding("gno", gnoSvc).
-	// 	WithExec([]string{"apk", "add", "curl"}).
-	// 	WithExec([]string{"curl", "-fsS", "--retry", "5", "--retry-delay", "30", "--retry-all-errors", "http://gno:26657/status?height_gte=1"}).
-	// 	ExitCode(ctx)
-
-	// if err != nil || waitSvc != 0 {
-	// 	return -1, err
-	// }
-
 	return dag.Container().
 		From("ghcr.io/gnolang/supernova:latest").
 		// invalidate cache
