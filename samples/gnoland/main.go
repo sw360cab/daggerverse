@@ -128,20 +128,6 @@ func (m *Gnoland) BuildImageFromSource(
 		Ref:     ref,
 		Fork:    fork,
 	})
-
-	// FIXME: waiting for gnogenesis to be available in Docker targets
-	if binary == GnocontribsBin {
-		//		return m.CloneMaster()
-		return dag.Container().
-			From("golang:1.23-alpine").
-			WithEnvVariable("GNOROOT", "/gnoroot").
-			WithEnvVariable("CGO_ENABLED", "0").
-			WithDirectory("/gnoroot", srcDir).
-			WithWorkdir("/gnoroot/contribs/gnogenesis").
-			WithExec([]string{"go", "mod", "download", "-x"}).
-			WithExec([]string{"go", "build", "-o", "/usr/bin/gnogenesis", "."})
-	}
-
 	return srcDir.DockerBuild(dagger.DirectoryDockerBuildOpts{
 		Target: string(binary),
 	})
