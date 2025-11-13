@@ -33,26 +33,26 @@ func (s *Supernova) RunTest(
 		transactions = DEFAULT_TRANSACTIONS
 	}
 
-	gnoSvc := dag.Gnoland().RunGnolandValidator("")
+	// gnoSvc := dag.Gnoland().RunGnolandNode()
 
-	waitSvc, err := dag.Container().
-		From("alpine:3").
-		// invalidate cache
-		WithEnvVariable("CACHE_BUSTER", time.Now().Format(time.RFC3339Nano)).
-		WithServiceBinding("gno", gnoSvc).
-		WithExec([]string{"apk", "add", "curl"}).
-		WithExec([]string{"curl", "-fsS", "--retry", "5", "--retry-delay", "10", "--retry-all-errors", "http://gno:26657/status?height_gte=1"}).
-		ExitCode(ctx)
+	// waitSvc, err := dag.Container().
+	// 	From("alpine:3").
+	// 	// invalidate cache
+	// 	WithEnvVariable("CACHE_BUSTER", time.Now().Format(time.RFC3339Nano)).
+	// 	WithServiceBinding("gno", gnoSvc).
+	// 	WithExec([]string{"apk", "add", "curl"}).
+	// 	WithExec([]string{"curl", "-fsS", "--retry", "5", "--retry-delay", "30", "--retry-all-errors", "http://gno:26657/status?height_gte=1"}).
+	// 	ExitCode(ctx)
 
-	if err != nil || waitSvc != 0 {
-		return -1, err
-	}
+	// if err != nil || waitSvc != 0 {
+	// 	return -1, err
+	// }
 
 	return dag.Container().
 		From("ghcr.io/gnolang/supernova:latest").
 		// invalidate cache
 		WithEnvVariable("CACHE_BUSTER", time.Now().Format(time.RFC3339Nano)).
-		WithServiceBinding("gno", gnoSvc).
+		WithServiceBinding("gno", dag.Gnoland().RunGnolandNode()).
 		WithExec([]string{"-sub-accounts", fmt.Sprintf("%d", subAccounts), "-transactions", fmt.Sprintf("%d", transactions),
 			"-chain-id", DEFAULT_CHAINID, "-url", "http://gno:26657",
 			"-mnemonic", MNEMONIC},
