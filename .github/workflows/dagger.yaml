@@ -5,14 +5,27 @@ on:
 
 jobs:
 
-  test:
-    name: sample-ci
+  build:
+    name: gnoland-build-ci
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Test
-        uses: dagger/dagger-for-github@8.0.0
+      - name: Build Gnocontribs
+        uses: dagger/dagger-for-github@v8.2.0
+        with:
+          verb: call
+          workdir: samples/gnoland
+          args: build-image-from-source --binary GNOCONTRIBS_BIN
+
+  gnokey:
+    name: gnokey-ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: MakeTx
+        uses: dagger/dagger-for-github@v8.2.0
         with:
           verb: call
           workdir: samples/gnokey
@@ -25,9 +38,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Supernova Run
-        uses: dagger/dagger-for-github@v7
+        uses: dagger/dagger-for-github@v8.2.0
         with:
-          version: "v0.16.1"
           verb: call
           workdir: samples/supernova
           args: run-test --sub-accounts 2 --transactions 100
