@@ -1,7 +1,8 @@
 {
   "name": "build_push",
-  "engineVersion": "v0.16.1",
+  "engineVersion": "v0.19.6",
   "sdk": {
     "source": "go"
-  }
+  },
+  "disableDefaultFunctionCaching": true
 }
