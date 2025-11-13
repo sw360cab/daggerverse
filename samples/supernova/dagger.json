@@ -1,7 +1,9 @@
 {
   "name": "supernova",
-  "engineVersion": "v0.16.1",
-  "sdk": "go",
+  "engineVersion": "v0.18.14",
+  "sdk": {
+    "source": "go"
+  },
   "dependencies": [
     {
       "name": "gnoland",

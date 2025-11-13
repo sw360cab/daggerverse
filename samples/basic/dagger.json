@@ -1,6 +1,9 @@
 {
   "name": "gno-dagger",
-  "engineVersion": "v0.14.0",
-  "sdk": "go",
-  "source": "hello-dagger"
+  "engineVersion": "v0.19.6",
+  "sdk": {
+    "source": "go"
+  },
+  "source": "hello-dagger",
+  "disableDefaultFunctionCaching": true
 }

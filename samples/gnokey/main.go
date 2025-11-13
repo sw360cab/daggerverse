@@ -5,6 +5,7 @@ import (
 	"dagger/gnokey/internal/dagger"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type Gnokey struct{}
@@ -83,7 +84,7 @@ func (m *Gnokey) RunGnolandValidator(publicKey string) *dagger.Service {
 
 	// Add current account to genesis
 	ctr := dag.Container().
-		From("ghcr.io/gnolang/gno/gnoland:chain-test5.0")
+		From("ghcr.io/gnolang/gno/gnoland:master")
 
 	if publicKey != "" {
 		ctr.
@@ -91,11 +92,13 @@ func (m *Gnokey) RunGnolandValidator(publicKey string) *dagger.Service {
 	}
 
 	return ctr.
-		WithExposedPort(26657).
+		// invalidate cache
+		WithEnvVariable("CACHE_BUSTER", time.Now().Format(time.RFC3339Nano)).
 		WithExec([]string{"config", "init"}, execOpts).
 		WithExec([]string{"config", "set", "rpc.laddr", "tcp://0.0.0.0:26657"}, execOpts).
+		WithExposedPort(26657).
 		AsService(dagger.ContainerAsServiceOpts{
-			Args:          []string{"start", "--lazy", "--log-level", "info", "--chainid", ChainId},
+			Args:          []string{"start", "--lazy", "--skip-genesis-sig-verification", "--log-level", "info", "--chainid", ChainId},
 			UseEntrypoint: execOpts.UseEntrypoint,
 		})
 }
