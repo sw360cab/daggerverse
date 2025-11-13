@@ -1,13 +1,14 @@
 {
   "name": "gnokey",
-  "engineVersion": "v0.18.14",
+  "engineVersion": "v0.19.6",
   "sdk": {
     "source": "go"
   },
   "dependencies": [
     {
-      "name": "gitcloner",
+      "name": "gnocloner",
       "source": "../gnoland"
     }
-  ]
+  ],
+  "disableDefaultFunctionCaching": true
 }

@@ -16,19 +16,11 @@ const (
 	RealmName string = "r/demo/counter"
 )
 
-// Run Gnokey Container
+// Gathers Gnokey Container
 func (m *Gnokey) BaseGnokey(homeDirKey *dagger.Directory) *dagger.Container {
 	return dag.Container().
 		From("ghcr.io/gnolang/gno/gnokey:master").
 		WithMountedDirectory("/gnohome", homeDirKey)
-}
-
-// Generates a Gno key providing output
-// TODO: remove
-func (m *Gnokey) GenerateKeyOut(ctx context.Context, homeDirKey *dagger.Directory, passwordString string) (string, error) {
-	ctd := m.GenerateKey(ctx, homeDirKey, passwordString)
-	ctd.Directory("/gnohome").Export(ctx, "/tmp/")
-	return ctd.Stdout(ctx)
 }
 
 // Generates a Gno key
@@ -40,7 +32,7 @@ func (m *Gnokey) GenerateKey(ctx context.Context, homeDirKey *dagger.Directory, 
 			})
 }
 
-// Perform a Tx using Gnokey on a local chain
+// Performs a Tx using Gnokey on a local chain
 func (m *Gnokey) MakeTx(ctx context.Context, homeDirKey *dagger.Directory, passwordString string) (string, error) {
 	baseKeyContainer := m.GenerateKey(ctx, homeDirKey, passwordString)
 
@@ -57,7 +49,7 @@ func (m *Gnokey) MakeTx(ctx context.Context, homeDirKey *dagger.Directory, passw
 	destMountDir := fmt.Sprintf("/gnopackages/%s", RealmName)
 
 	return baseKeyContainer.
-		WithServiceBinding("gno", m.RunGnolandValidator(pubKey)).
+		WithServiceBinding("gno", m.RunGnolandNode(pubKey)).
 		WithDirectory(destMountDir, m.loadGnoPackage(RealmName)).
 		WithExec([]string{"maketx", "addpkg", "-home=/gnohome", "-insecure-password-stdin", "-chainid", ChainId,
 			"-gas-fee", "1000000ugnot", "-gas-wanted", "3000000", "-max-deposit", "100000000ugnot",
@@ -70,13 +62,24 @@ func (m *Gnokey) MakeTx(ctx context.Context, homeDirKey *dagger.Directory, passw
 		Stdout(ctx)
 }
 
+// Loads a gno.land example from official examples folder
 func (m *Gnokey) loadGnoPackage(packageName string) *dagger.Directory {
-	repoDir := dag.Gitcloner().CloneMaster()
+	repoDir := dag.Gnocloner().CloneMaster()
 	return repoDir.Directory(fmt.Sprintf("./examples/gno.land/%s", packageName))
 }
 
+// Parse public address of gnokey
+func (m *Gnokey) parsePubAddr(keyline string) string {
+	start := strings.Index(keyline, "addr: ") + len("addr: ")
+	end := strings.Index(keyline[start:], " ") + start
+	return keyline[start:end]
+}
+
 // Run Gnoland chain
-func (m *Gnokey) RunGnolandValidator(publicKey string) *dagger.Service {
+func (m *Gnokey) RunGnolandNode(
+	// +optional
+	publicKey string,
+) *dagger.Service {
 	// use entrypoint
 	execOpts := dagger.ContainerWithExecOpts{
 		UseEntrypoint: true,
@@ -91,20 +94,28 @@ func (m *Gnokey) RunGnolandValidator(publicKey string) *dagger.Service {
 			WithExec([]string{"sh", "-c", fmt.Sprintf("echo %s=10000000000ugnot >> /gnoroot/gno.land/genesis/genesis_balances.txt", publicKey)})
 	}
 
-	return ctr.
+	gnolandSvc := ctr.
 		// invalidate cache
 		WithEnvVariable("CACHE_BUSTER", time.Now().Format(time.RFC3339Nano)).
 		WithExec([]string{"config", "init"}, execOpts).
 		WithExec([]string{"config", "set", "rpc.laddr", "tcp://0.0.0.0:26657"}, execOpts).
 		WithExposedPort(26657).
 		AsService(dagger.ContainerAsServiceOpts{
-			Args:          []string{"start", "--lazy", "--skip-genesis-sig-verification", "--log-level", "info", "--chainid", ChainId},
+			Args:          []string{"start", "--lazy", "--skip-genesis-sig-verification", "--log-level", "info"},
 			UseEntrypoint: execOpts.UseEntrypoint,
 		})
-}
 
-func (m *Gnokey) parsePubAddr(keyline string) string {
-	start := strings.Index(keyline, "addr: ") + len("addr: ")
-	end := strings.Index(keyline[start:], " ") + start
-	return keyline[start:end]
+	// wait for gnoland RPC service to be ready - can be useless
+	code, _ := dag.Container().
+		From("alpine:3").
+		WithServiceBinding("gno", gnolandSvc).
+		WithExec([]string{"apk", "add", "curl"}).
+		WithExec([]string{"curl", "-fsS", "--retry", "5", "--retry-delay", "20", "--retry-all-errors", "http://gno:26657/status?height_gte=1"}).
+		ExitCode(context.Background())
+
+	if code != 0 {
+		return nil
+	}
+
+	return gnolandSvc
 }
