@@ -17,10 +17,6 @@ func (m *BaseAiAgent) GoProgram(
 			"a container to use for building Go code").
 		WithContainerOutput("completed", "the completed assignment in the Golang container")
 
-	// Can you create an "hello world" program in Golang?
-	// Create files in the default directory in $builder
-	// Do not stop until your assignment is completed.
-
 	work := dag.LLM().
 		WithEnv(environment).
 		WithPrompt(`
@@ -36,4 +32,31 @@ func (m *BaseAiAgent) GoProgram(
 		Output("completed").
 		AsContainer().
 		Terminal()
+}
+
+func (m *BaseAiAgent) GoAdvancedProgram(
+	assignment string,
+) *dagger.Directory {
+	environment := dag.Env().
+		WithStringInput("assignment", assignment, "the assignment to complete").
+		WithContainerInput(
+			"builder",
+			dag.Container().From("golang").WithWorkdir("/app"),
+			"a container to use for building Go code").
+		WithContainerOutput("completed", "the completed assignment in the Golang container")
+
+	prompt := dag.CurrentModule().
+		Source().
+		File("prompts/create_go_app_all.md")
+
+	work := dag.LLM().
+		WithEnv(environment).
+		WithPromptFile(prompt)
+
+	return work.
+		Env().
+		Output("completed").
+		AsContainer().Directory("/app")
+	// dagger call go-advanced-program --assignment "..." \
+	//  export --path=out/go-advanced
 }

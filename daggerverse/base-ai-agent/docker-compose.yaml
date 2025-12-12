@@ -1,0 +1,14 @@
+models:
+  ctx_gpt_oss_model:
+    model: ai/gpt-oss:20B-UD-Q4_K_XL
+    context_size: 8192
+  ctx_qwen_code_model:
+    model: ai/qwen3-coder:30B-A3B-UD-Q4_K_XL
+    context_size: 8192
+
+services:
+  a_service:
+    image: nginx:alpine
+    models:
+      - ctx_gpt_oss_model
+      # - ctx_qwen_code_model
