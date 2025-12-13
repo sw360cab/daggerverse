@@ -1,0 +1,18 @@
+{
+  "name": "kind-dagger",
+  "engineVersion": "v0.19.6",
+  "sdk": {
+    "source": "go"
+  },
+  "dependencies": [
+    {
+      "name": "dagger-helm",
+      "source": "../dagger-helm"
+    },
+    {
+      "name": "kind",
+      "source": "github.com/neticdk/daggerverse/modules/kind@9f686ffb5a2ea6c0d9480cd5fecee66bda1fd55c",
+      "pin": "9f686ffb5a2ea6c0d9480cd5fecee66bda1fd55c"
+    }
+  ]
+}

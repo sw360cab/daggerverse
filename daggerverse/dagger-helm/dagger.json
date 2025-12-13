@@ -1,7 +1,14 @@
 {
-  "name": "dagger-helm",
+  "name": "dagger-helm-k3s",
   "engineVersion": "v0.19.6",
   "sdk": {
     "source": "go"
-  }
+  },
+  "dependencies": [
+    {
+      "name": "k3s",
+      "source": "github.com/marcosnils/daggerverse/k3s@main",
+      "pin": "937f4ab9f61f5a7f51ad2981c080fe714af06272"
+    }
+  ]
 }

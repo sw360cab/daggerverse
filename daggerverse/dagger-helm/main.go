@@ -1,37 +1,106 @@
-// A generated module for DaggerHelm functions
-//
-// This module has been generated via dagger init and serves as a reference to
-// basic module structure as you get started with Dagger.
-//
-// Two functions have been pre-created. You can modify, delete, or add to them,
-// as needed. They demonstrate usage of arguments and return types using simple
-// echo and grep commands. The functions can be called from the dagger CLI or
-// from one of the SDKs.
-//
-// The first line in this comment block is a short description line and the
-// rest is a long description with more detail on the module's purpose or usage,
-// if appropriate. All modules should have a short description.
-
+// Run a full cluster into K3s using repository files
 package main
 
 import (
 	"context"
 	"dagger/dagger-helm/internal/dagger"
+	"fmt"
+	"slices"
+	"strings"
+	"time"
 )
 
-type DaggerHelm struct{}
+const (
+	ClusterName string = "daggerhelm.cluster.test"
+	K3sKubePort int    = 6443
+)
 
-// Returns a container that echoes whatever string argument is provided
-func (m *DaggerHelm) ContainerEcho(stringArg string) *dagger.Container {
-	return dag.Container().From("alpine:latest").WithExec([]string{"echo", stringArg})
+type DaggerHelmK3s struct{}
+
+var (
+	defaultFileOwner = dagger.ContainerWithFileOpts{Owner: "1001"}
+	defaultDirOwner  = dagger.ContainerWithDirectoryOpts{Owner: "1001"}
+)
+
+func (m *DaggerHelmK3s) DaggerHelmK3s(
+	ctx context.Context,
+	daggerCliHelm *dagger.Directory,
+	// +optional
+	// +default=latest
+	daggerVersion string,
+) (int, error) {
+	// initialize K3s cluster
+	k3s := dag.K3S(ClusterName)
+	kServer := k3s.Server()
+	_, err := kServer.Start(ctx)
+	if err != nil {
+		return -1, err
+	}
+
+	daggerEngineContainer := m.InstallDaggerHelm(
+		daggerVersion,
+		k3s.Config(),
+	)
+
+	daggerCliHelmContainer := m.RunDaggerCliHelm(
+		daggerVersion,
+		daggerCliHelm,
+		daggerEngineContainer,
+	)
+
+	return m.runDaggerHelloModule(ctx, daggerCliHelmContainer)
 }
 
-// Returns lines that match a pattern in the files of the provided Directory
-func (m *DaggerHelm) GrepDir(ctx context.Context, directoryArg *dagger.Directory, pattern string) (string, error) {
-	return dag.Container().
-		From("alpine:latest").
-		WithMountedDirectory("/mnt", directoryArg).
-		WithWorkdir("/mnt").
-		WithExec([]string{"grep", "-R", pattern, "."}).
-		Stdout(ctx)
+func (m *DaggerHelmK3s) InstallDaggerHelm(
+	daggerVersion string,
+	kubeConfig *dagger.File,
+) *dagger.Container {
+	// initalize cluster env
+	initContainer := dag.Container().From("alpine/helm").
+		WithoutEntrypoint().
+		WithExec([]string{"apk", "add", "kubectl"}).
+		WithEnvVariable("KUBECONFIG", "/.kube/config").
+		WithFile("/.kube/config", kubeConfig, defaultFileOwner).
+		WithUser("1001").
+		WithEnvVariable("HOME", "/tmp").
+		WithWorkdir("/tmp").
+		WithEnvVariable("CACHE_BUSTER", time.Now().Format(time.RFC3339Nano))
+
+	helmDaggerCmd := []string{"helm", "install", "dagger-engine", "oci://registry.dagger.io/dagger-helm",
+		"--namespace", "dagger", "--create-namespace"}
+
+	if daggerVersion != "latest" {
+		helmDaggerCmd = slices.Concat(helmDaggerCmd, []string{"--version", daggerVersion})
+	}
+
+	// install Dagger Helm Chart
+	return initContainer.
+		// WithDirectory("/run/dagger-dagger-engine-dagger-helm", daggerCliHelm.Directory("./runner"), defaultDirOwner).
+		// WithExec([]string{"chmod", "777", "/run/dagger-dagger-engine-dagger-helm"}).
+		WithExec(helmDaggerCmd)
+}
+
+func (m *DaggerHelmK3s) RunDaggerCliHelm(
+	daggerVersion string,
+	daggerCliHelm *dagger.Directory,
+	daggerEngineContainer *dagger.Container,
+) *dagger.Container {
+	// install DaggerCli Custom Helm Chart
+	return daggerEngineContainer.
+		WithDirectory("/opt/data/helm", daggerCliHelm.Directory("./helm"), defaultDirOwner).
+		WithExec([]string{"kubectl", "create", "serviceaccount", "default", "-n", "dagger"}).
+		WithExec([]string{"helm", "install", "dagger-cli", "/opt/data/helm",
+			"--set", fmt.Sprintf("daggerVersion=%s", daggerVersion),
+			"--namespace", "dagger"}).
+		WithExec([]string{"kubectl", "wait", "--for=condition=ready", "--timeout=90s", "pod", "-l", "app=dagger-cli", "-n", "dagger"})
+}
+
+func (m *DaggerHelmK3s) runDaggerHelloModule(
+	ctx context.Context,
+	daggerCliContainer *dagger.Container,
+) (int, error) {
+	return daggerCliContainer.
+		WithExec(append([]string{"kubectl", "exec", "dagger-cli-pod", "-n", "dagger", "--"},
+			strings.Split("dagger call -m github.com/shykes/daggerverse/hello hello --giant --name daggernauts", " ")...)).
+		ExitCode(ctx)
 }

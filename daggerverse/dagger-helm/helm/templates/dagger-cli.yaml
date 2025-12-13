@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dagger-cli-pod
+  labels:
+    app: dagger-cli
+spec:
+  initContainers:
+  - name: dagger-cli
+    image: alpine:3
+    command:
+      - sh
+      - -o
+      - pipefail
+      - -exc
+      - |-
+        apk add curl ca-certificates
+        if [ ! -f $BIN_DIR/dagger ]; then
+          if ! curl --fail --silent --show-error https://dl.dagger.io/dagger/install.sh | sh; then
+            echo "Dagger CLI install failed"
+            exit 1
+          fi
+          $BIN_DIR/dagger version
+        fi
+    env:
+      - name: BIN_DIR
+        value: /opt/dagger/bin
+      - name: DAGGER_VERSION
+        value: {{ .Values.daggerVersion | default "latest" }}
+    volumeMounts:
+      - name: dagger-cli
+        mountPath: /opt/dagger/bin
+  containers:
+    - name: dagger-exec
+      image: alpine:3
+      command:
+        - sh
+        - -o
+        - pipefail
+        - -exc
+        - |-
+          cp /opt/dagger/bin/dagger /bin/dagger
+          sleep 3600
+      env:
+        - name: _EXPERIMENTAL_DAGGER_RUNNER_HOST
+          value: unix:///var/run/dagger/engine.sock
+      volumeMounts:
+        - name: dagger-cli
+          mountPath: /opt/dagger/bin
+        - name: dagger-engine
+          mountPath: /var/run/dagger
+
+  volumes:
+  - name: dagger-cli
+    emptyDir: {}
+  # Dagger engine installed from Helm Dagger Helm chart is configured 
+  # to use hostPath for run volume
+  - name: dagger-engine
+    hostPath:
+      path: /var/run/dagger-dagger-engine-dagger-helm
