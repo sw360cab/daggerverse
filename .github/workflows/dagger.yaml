@@ -43,3 +43,19 @@ jobs:
           verb: call
           workdir: daggerverse/supernova
           args: run-test --sub-accounts 2 --transactions 100
+
+  dagger_helm:
+    name: dagger-helm-cli
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dagger-version: ["0.18.14", "0.19.8", latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Dagger Run
+        uses: dagger/dagger-for-github@v8.2.0
+        with:
+          verb: call
+          workdir: daggerverse/kind-dagger
+          args: run-dagger-helm --socket=/var/run/docker.sock --dagger-cli-helm ../dagger-helm/ --dagger-version ${{ matrix.dagger-version }}
