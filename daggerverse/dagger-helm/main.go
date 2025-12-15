@@ -88,7 +88,8 @@ func (m *DaggerHelmK3s) RunDaggerCliHelm(
 	// install DaggerCli Custom Helm Chart
 	return daggerEngineContainer.
 		WithDirectory("/opt/data/helm", daggerCliHelm.Directory("./helm"), defaultDirOwner).
-		WithExec([]string{"kubectl", "create", "serviceaccount", "default", "-n", "dagger"}).
+		// The service account should be present / created
+		WithExec([]string{"kubectl", "wait", "--for=create", "--timeout=60s", "sa/default", "-n", "dagger"}).
 		WithExec([]string{"helm", "install", "dagger-cli", "/opt/data/helm",
 			"--set", fmt.Sprintf("daggerVersion=%s", daggerVersion),
 			"--namespace", "dagger"}).
