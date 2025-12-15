@@ -52,6 +52,5 @@ func (m *KindDagger) RunDaggerHelm(
 	return daggerCliHelmContainer.
 		WithExec(append([]string{"kubectl", "exec", "dagger-cli-pod", "-n", "dagger", "--"},
 			strings.Split("dagger call -m github.com/shykes/daggerverse/hello hello --giant --name daggernauts", " ")...)).
-		Terminal().
 		ExitCode(ctx)
 }
