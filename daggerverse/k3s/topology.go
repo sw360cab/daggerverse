@@ -48,7 +48,7 @@ func (m *GnoK3s) setupValidatorNodes(ctx context.Context, valCounter int) []netw
 		// Secrets dir
 		gnoSecretsDir := m.generateSecrets()
 		// Genesis file
-		m.genesisFile = m.generateGenesis(nodeName, gnoSecretsDir)
+		m.genesisFile = m.addValidatorToGenesis(nodeName, gnoSecretsDir)
 		validators = append(validators, networkNode{
 			name:          nodeName,
 			nodeAddress:   getNodeAddress(ctx, nodeName, gnoSecretsDir),

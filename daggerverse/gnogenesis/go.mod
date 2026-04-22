@@ -1,6 +1,6 @@
-module dagger/k-3-s
+module dagger/gnogenesis
 
-go 1.24.4
+go 1.24.0
 
 require (
 	github.com/99designs/gqlgen v0.17.81

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    gno.service: gnoweb
+  name: gnoweb
+  namespace: gno
+spec:
+  selector:
+    gno.service: gnoweb
+  ports:
+  - name: gnoweb-port
+    port: 8888
+    targetPort: 8888
+    protocol: TCP

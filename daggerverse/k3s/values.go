@@ -27,21 +27,9 @@ var (
 	gnoServices = []gnoService{
 		{
 			name:      "gnoweb",
-			deployDir: "core/gnoweb",
+			deployDir: "gnoweb",
 			port:      8888,
-			testPath:  "/status.json",
-		},
-		{
-			name:      "gnofaucet",
-			deployDir: "core/gnofaucet",
-			port:      5050,
-			testPath:  "/health",
-		},
-		{
-			name:      "tx-indexer",
-			deployDir: "core/indexer",
-			port:      8546,
-			testPath:  "/health",
+			testPath:  "/r/gnoland",
 		},
 	}
 	rpcService = gnoService{

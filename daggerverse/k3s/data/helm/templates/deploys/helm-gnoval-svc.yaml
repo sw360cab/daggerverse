@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    gno.service: gnoland
+    gno.type: {{ default "validator" .Values.app.type }}
+    gno.role: {{ .Values.app.role }}
+  name: {{ .Values.svc.name }}
+  namespace: {{ default "gno" .Values.app.namespace }}
+spec:
+  selector:
+    gno.service: gnoland
+    gno.type: {{ default "validator" .Values.app.type }}
+    gno.role: {{ .Values.app.role }}
+    gno.name: {{ .Values.app.name }}
+  {{- if ne .Values.svc.type "LoadBalancer" }}
+  clusterIP: None
+  {{- end}}
+  type: {{ default "ClusterIP" .Values.svc.type }}
+  ports:
+    - name: p2p-internal
+      port: 26656
+      targetPort: p2p-internal
+    {{- if eq .Values.app.type "rpc" }}
+    - name: rpc-public
+      port: 26657
+      targetPort: rpc-public
+    {{- end }}

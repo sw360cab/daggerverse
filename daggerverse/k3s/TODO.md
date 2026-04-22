@@ -5,7 +5,5 @@
 - [x] Spin multiple validators (to be added to genesis)
 - [x] spin sentry nodes --> test sentry syncing
 - [x] number of RPC, sentries, and validators
-
-- [x] CI/CD Action --> (missing PAT token)
-
+- [x] CI/CD Action
 - [ ] Optional genesis URL -> otherwise generate genesis

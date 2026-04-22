@@ -1,0 +1,35 @@
+# Gnoland Volume
+{{- if .Values.storage.local }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Values.app.name }}-pv-volume
+  namespace: {{ default "gno" .Values.app.namespace }}
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: {{ default "1Gi" .Values.storage.capacity }}
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: {{ .Values.storage.local.path }}
+{{- end }}
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.app.name }}-pv-claim
+  namespace: {{ default "gno" .Values.app.namespace }}
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  storageClassName: {{ default "manual" .Values.storage.class }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ default "1Gi" .Values.storage.capacity }}

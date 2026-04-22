@@ -1,0 +1,11 @@
+apiVersion: v2
+name: gno-validator
+description: A Helm chart for Gno validator
+
+version: 0.0.1
+appVersion: 0.1.0
+
+keywords:
+  - gno
+  - gnoland
+  - validator

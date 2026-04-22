@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gnoweb
+  namespace: gno
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      gno.service: gnoweb
+  template:
+    metadata:
+      labels:
+        gno.service: gnoweb
+    spec:
+      containers:
+      - name: gnoweb
+        image: ghcr.io/gnolang/gno/gnoweb:master
+        imagePullPolicy: Always
+        envFrom:
+        - secretRef:
+            name: gnoweb-env
+        args:
+          - --bind=0.0.0.0:8888
+          - --remote=http://gnocore-rpc-01-svc:26657
+          - --faucet-url=$(FAUCET_URL)
+          - --chainid=$(CHAIN_ID)
+          - --help-remote=$(RPC_REMOTE)

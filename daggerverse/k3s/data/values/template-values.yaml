@@ -3,15 +3,12 @@ app:
   role: validator
 
 storage:
-  capacity: 1Gi # 120Gi
+  capacity: 1Gi
   local:
     path: /opt/gnoland/gnocore-val-01/data
 
 svc:
   name: gnocore-val-01-svc
-
-ingress:
-  enabled: false
 
 placement:
   tolerations:
