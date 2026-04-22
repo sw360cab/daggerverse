@@ -19,7 +19,8 @@ const (
 // Gathers Gnokey Container
 func (m *Gnokey) BaseGnokey(homeDirKey *dagger.Directory) *dagger.Container {
 	return dag.Container().
-		From("ghcr.io/gnolang/gno/gnokey:master").
+		// FIXME: does not work with master
+		From("ghcr.io/gnolang/gno/gnokey:chain-test11").
 		WithMountedDirectory("/gnohome", homeDirKey)
 }
 
