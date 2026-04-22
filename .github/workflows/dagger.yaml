@@ -84,4 +84,4 @@ jobs:
         with:
           version: ${{ steps.dagger_version.outputs.version }}
           module: daggerverse/k3s
-          call: spin-cluster --helm-data-folder ci/dagger/daggerverse/k3s/helm-values --repo-folder .
+          call: spin-cluster --data-folder daggerverse/k3s/data
