@@ -11,51 +11,43 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Get Dagger version
+        id: dagger_version
+        uses: sagikazarmark/dagger-version-action@v0.0.2
+        with:
+          path: daggerverse/gnoland
       - name: Build Gnocontribs
-        uses: dagger/dagger-for-github@v8.2.0
+        uses: dagger/dagger-for-github@v8.4.0
         with:
-          verb: call
-          workdir: daggerverse/gnoland
-          args: build-image-from-source --binary GNOCONTRIBS_BIN
+          version: ${{ steps.dagger_version.outputs.version }}
+          module: daggerverse/gnoland
+          call: build-image-from-source --binary GNOCONTRIBS_BIN
 
-  docs-gnoland:
-    name: gnoland-docs
+  gnoland-ecosystem:
+    name: gnoland-ecosystem
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Build Gnocontribs
-        uses: dagger/dagger-for-github@v8.2.0
         with:
-          verb: call
-          workdir: daggerverse/docs.gno.land
-          args: build-doc
-
-  gnokey:
-    name: gnokey-ci
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: MakeTx
-        uses: dagger/dagger-for-github@v8.2.0
+          fetch-depth: 0
+      - name: Get Dagger version
+        id: dagger_version
+        uses: sagikazarmark/dagger-version-action@v0.0.2
         with:
-          verb: call
-          workdir: daggerverse/gnokey
-          args: make-tx --home-dir-key=. --password-string=helloworld
-
-  supernova:
-    name: supernova-ci
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Supernova Run
-        uses: dagger/dagger-for-github@v8.2.0
+          path: daggerverse/gnoland
+      - name: Build Docs
+        uses: dagger/dagger-for-github@v8.4.0
         with:
-          verb: call
-          workdir: daggerverse/supernova
-          args: run-test --sub-accounts 2 --transactions 100
+          version: ${{ steps.dagger_version.outputs.version }}
+          module: daggerverse/docs.gno.land
+          call: build-doc
+      - name: GnoKey MakeTx
+        uses: dagger/dagger-for-github@v8.4.0
+        with:
+          version: ${{ steps.dagger_version.outputs.version }}
+          module: daggerverse/gnokey
+          call: make-tx --home-dir-key=. --password-string=helloworld
 
   dagger_helm:
     name: dagger-helm-cli
@@ -67,8 +59,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Dagger Run
-        uses: dagger/dagger-for-github@v8.2.0
+        uses: dagger/dagger-for-github@v8.4.0
         with:
+          varsion: latest
           verb: call
           workdir: daggerverse/kind-dagger
           args: run-dagger-helm --socket=/var/run/docker.sock --dagger-cli-helm ../dagger-helm/ --dagger-version ${{ matrix.dagger-version }}
