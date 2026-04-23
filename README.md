@@ -1,4 +1,4 @@
-# Gno Dagger
+# Daggerverse
 
 A Playground for Dagger CI mostly related to Gnoland
 
