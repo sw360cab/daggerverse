@@ -382,7 +382,7 @@ All the code you have seen here can be found in the `k3s` module in my personal 
 
 ## References
 
-- [Kubernetes Cluster Testing](https://github.com/sw360cab/daggerverse/tree/main/k3s)
+- [Kubernetes Cluster Testing](https://github.com/sw360cab/daggerverse/tree/master/daggerverse/k3s)
 - [Dagger Doc](https://docs.dagger.io)
 - [Dagger Core Concepts](https://docs.dagger.io/core-concepts)
 - [Dagger CI/CD Integration with GitHub Actions](https://docs.dagger.io/getting-started/ci-integrations/github-actions)
